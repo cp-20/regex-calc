@@ -142,8 +142,8 @@ sub _to_unary {
         tick('append-table', $APPEND, $s, $TBL_B, '');
         $s =~ s/$APPEND/$TBL_B/;
         tock($s);
-        tick('to-unary(chunk)', $RE_CH, $s, q{$1$3$5$7$9$9$9$9$9$9$9$9$9$9${10}}, 'g');
-        $s =~ s/$RE_CH/$1$3$5$7$9$9$9$9$9$9$9$9$9$9${10}/g;
+        tick('to-unary(chunk)', $RE_CH, $s, q{$1$3$5$7$9$9$9$9$9$9$9$9$9$9$10}, 'g');
+        $s =~ s/$RE_CH/$1$3$5$7$9$9$9$9$9$9$9$9$9$9$10/g;
         tock($s);
         if ($s =~ /\#x*\#/) {
             tick('append-reservoir', $AT, $s, $RESERVOIR, '');
@@ -158,8 +158,8 @@ sub _to_unary {
         tick('append-table', $APPEND, $s, $TBL_B, '');
         $s =~ s/$APPEND/$TBL_B/;
         tock($s);
-        tick('to-unary', $RE_B, $s, q{$1$3$5$7$9$9$9$9$9$9$9$9$9$9${10}}, 'g');
-        $s =~ s/$RE_B/$1$3$5$7$9$9$9$9$9$9$9$9$9$9${10}/g;
+        tick('to-unary', $RE_B, $s, q{$1$3$5$7$9$9$9$9$9$9$9$9$9$9$10}, 'g');
+        $s =~ s/$RE_B/$1$3$5$7$9$9$9$9$9$9$9$9$9$9$10/g;
         tock($s);
     }
     elsif ($e =~ /[0-9]{2}/) {
@@ -401,8 +401,8 @@ sub calc_fixed {
     tick('append-table', $APPEND, $s, $TBL_B, '');
     $s =~ s/$APPEND/$TBL_B/;
     tock($s);
-    tick('to-unary', $RE_B, $s, q{$1$3$5$7$9$9$9$9$9$9$9$9$9$9${10}}, 'g');
-    $s =~ s/$RE_B/$1$3$5$7$9$9$9$9$9$9$9$9$9$9${10}/g;
+    tick('to-unary', $RE_B, $s, q{$1$3$5$7$9$9$9$9$9$9$9$9$9$9$10}, 'g');
+    $s =~ s/$RE_B/$1$3$5$7$9$9$9$9$9$9$9$9$9$9$10/g;
     tock($s);
 
     die "Division by zero\n" if $s =~ /\/\#(?!x)/;
