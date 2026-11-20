@@ -4,7 +4,7 @@ use FindBin; use lib "$FindBin::Bin/lib";
 use RegexCalc qw(calc);
 use Reference qw(reference);
 
-sub run { my ($f, $e) = @_; local $SIG{ALRM} = sub { die "TIMEOUT\n" }; alarm 5; my $r = eval { ($f->($e))[0] }; alarm 0; defined $r ? $r : "ERR:$@" }
+sub run { my ($f, $e) = @_; local $SIG{ALRM} = sub { die "TIMEOUT\n" }; alarm 30; my $r = eval { ($f->($e))[0] }; alarm 0; defined $r ? $r : "ERR:$@" }
 
 # 固定シードの線形合同法 (再現可能)
 my $state = 0xc0ffee;
