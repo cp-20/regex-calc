@@ -1,0 +1,3 @@
+.DS_Store
+# OFL font sources, downloaded by slides/fonts/fetch.sh (only subsets are embedded in slides/index.html)
+slides/fonts/src/

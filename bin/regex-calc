@@ -1,0 +1,29 @@
+#!/usr/bin/perl
+# usage: regex-calc [--trace] [--fixed] '(3+6)*8'
+use strict; use warnings;
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+use RegexCalc qw(calc calc_fixed);
+
+my ($trace, $fixed, @args);
+for (@ARGV) {
+    if    ($_ eq '--trace') { $trace = 1 }
+    elsif ($_ eq '--fixed') { $fixed = 1 }
+    elsif ($_ eq '-h' || $_ eq '--help') { print "usage: regex-calc [--trace] [--fixed] EXPR\n"; exit 0 }
+    else  { push @args, $_ }
+}
+die "usage: regex-calc [--trace] [--fixed] EXPR\n" unless @args;
+
+# 表示用: x の長い連続を x{72} のように縮める (電卓本体ではなく CLI 側の整形)
+sub squash { my $s = shift; $s =~ s/(x{6,})/'x{' . length($1) . '}'/ge; return $s }
+
+my $step = 0;
+if ($trace) {
+    $RegexCalc::TRACE = sub {
+        my ($name, $re, $before, $after, $repl, $flags) = @_;
+        printf "#%d %s\n  pattern: %s\n  replace: %s\n  flags  : %s\n  before : %s\n  after  : %s\n", ++$step, $name, squash("$re"), squash($repl // ''), $flags // '', squash($before), squash($after);
+    };
+}
+my ($r, $n) = eval { $fixed ? calc_fixed($args[0]) : calc($args[0]) };
+if ($@) { print STDERR $@; exit 1 }
+print $trace ? "result: $r  ($n s/// passes)\n" : "$r  ($n s/// passes)\n";

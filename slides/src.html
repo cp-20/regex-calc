@@ -1,0 +1,1025 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>正規表現で電卓を作る</title>
+<!-- @@FONTS@@ -->
+<style></style>
+<!-- @@/FONTS@@ -->
+<style>
+:root{
+  --bg:#f5f4ef; --ink:#1a1b18; --sub:#6c6d65; --faint:#bdbcb3; --rule:#dedcd3;
+  --a:#2f7d4a; --b:#2b62a0; --p3:#8a4f9e; --warn:#b03f2b;
+  --hl-a:#d3e8cc; --hl-b:#d2e0f2;
+  --code-bg:#fbfaf7; --code-bd:#e1dfd6;
+  --t-var:#7d4692; --t-str:#94591a; --t-kw:#2b62a0; --t-meta:#227069; --t-esc:#a65a28; --t-op:#b03f2b; --t-cmt:#a09f96; --t-punct:#7b7c74;
+  --sans:"Deck Sans","LINE Seed JP","Hiragino Sans","Noto Sans JP",sans-serif;
+  --mono:"Deck Mono","Monaspace Neon","SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);overflow:hidden}
+body{font-family:var(--sans);font-weight:400;font-feature-settings:"palt" 1;font-kerning:normal;
+  text-autospace:no-autospace;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+#stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:center;overflow:hidden;background:var(--bg)}
+#bar{position:absolute;left:0;bottom:0;height:4px;background:var(--a);opacity:.3;transition:width .3s ease;z-index:9}
+
+/* ---------- frames ---------- */
+.f{position:absolute;inset:0;padding:0 210px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:64px}
+.f.c{align-items:center;text-align:center}
+[data-k]{transform-origin:0 0}
+.g{display:inline-block;white-space:pre;position:relative}
+.mono,.g,.code,.data{font-family:var(--mono);font-feature-settings:"liga" 0,"calt" 1}
+
+/* type scale — display 190 / title 150 / lead 88 / body 56 */
+.display{font-size:190px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.title{font-size:150px;font-weight:800}
+.nowrap{white-space:nowrap}
+.msg{font-size:128px;font-weight:800;white-space:nowrap}
+.huge{font-size:200px;font-weight:800;white-space:nowrap;letter-spacing:-.02em}
+.cfx{position:absolute;left:0;top:0;width:1920px;height:1080px;pointer-events:none;z-index:0}
+.huge{position:relative;z-index:1}
+.lead{font-size:88px;font-weight:700;letter-spacing:-.01em;line-height:1.4}
+.body{font-size:56px;font-weight:700;color:var(--sub);line-height:1.5}
+.a{color:var(--a)} .b{color:var(--b)} .p3{color:var(--p3)} .warn{color:var(--warn)} .sub{color:var(--sub)} .faint{color:var(--faint)}
+
+/* code: a quiet block; its background is a separate plate so it can morph */
+.code{position:relative;padding:44px 68px;font-size:72px;line-height:1.55;font-weight:400;text-align:left}
+.code.sm{font-size:56px;line-height:1.45;padding:32px 52px}
+.code.md{font-size:50px;line-height:1.45;padding:28px 46px}
+.code.xs{font-size:38px;padding:20px 34px}
+.code.rules{font-size:48px;line-height:1.45;padding:28px 48px}
+.code.alt{font-size:44px;line-height:1.42;padding:32px 56px}
+.code .ln{white-space:pre;min-height:1em}
+.code.quiz .ln:nth-child(2){margin-top:1.3em}
+.plate{position:absolute;background:var(--code-bg);border:2px solid var(--code-bd);border-radius:28px}
+.t-var{color:var(--t-var)} .t-str{color:var(--t-str)} .t-kw{color:var(--t-kw)} .t-meta{color:var(--t-meta)}
+.t-esc{color:var(--t-esc)} .t-op{color:var(--t-op);font-weight:500} .t-cmt{color:var(--t-cmt)} .t-punct{color:var(--t-punct)}
+.dimcode .g{color:var(--faint)!important}
+.hole.rv{width:2.4em}
+.hole{display:inline-block;width:6em;height:1.02em;vertical-align:-.18em;background:var(--hl-a);border-radius:12px;margin:0 .08em}
+
+/* marker: one rounded rect behind a run of glyphs (drawn by the engine) */
+.mark{position:absolute}
+.mark.a{background:var(--hl-a)} .mark.b{background:var(--hl-b)}
+
+/* unary data */
+.data{font-size:168px;font-weight:500;line-height:1.2;white-space:nowrap}
+.data.m{font-size:120px} .data.s{font-size:96px} .data.t{font-size:70px}
+.chip{display:inline-block;font-size:.62em;vertical-align:.18em;padding:.04em .42em;margin:0 .08em;border-radius:.36em;background:#e8e6de;color:var(--ink);white-space:nowrap}
+.chip.tbl{font-family:var(--sans);font-weight:700;background:transparent;border:3px dashed var(--faint);color:var(--sub);padding:.02em .5em}
+
+/* conveyor: before / regex / after on a fixed grid, so nothing drifts between frames */
+.conv{position:absolute;inset:0;display:grid;grid-template-rows:340px 400px 340px;justify-items:center}
+.conv>.before{align-self:end}
+.conv>.mid{align-self:center;display:flex;flex-direction:column;align-items:center;gap:26px}
+.conv>.after{align-self:start}
+.conv .tag{font-size:60px;font-weight:700;color:var(--ink)}
+.conv.done>.before .g:not(.m-a):not(.m-b){color:var(--faint)}
+.arr{position:absolute;left:944px;width:32px;height:52px;fill:none;stroke:var(--sub);stroke-width:4.5;stroke-linecap:round;stroke-linejoin:round}
+.arr.a1{top:370px} .arr.a2{top:658px}
+.rw{position:relative;display:inline-block;white-space:nowrap}
+.eq{position:absolute;left:100%;top:0;margin-left:.5em;font-family:var(--sans);font-weight:700;font-size:.8em;line-height:1.5;color:var(--a);white-space:nowrap}
+
+/* callouts (overlay) */
+.call{position:absolute;z-index:5;font-family:var(--sans);font-size:48px;font-weight:700;line-height:1;white-space:nowrap;
+  padding:16px 28px 18px;border-radius:18px;background:var(--ink);border-color:var(--ink);color:#fff}
+.call::after{content:"";position:absolute;left:var(--tl,calc(50% - 14px));bottom:-13px;border:14px solid transparent;border-bottom:none;border-top-color:inherit}
+.call.below::after{bottom:auto;top:-13px;border:14px solid transparent;border-top:none;border-bottom-color:inherit}
+.call.a{background:var(--a);border-color:var(--a)} .call.b{background:var(--b);border-color:var(--b)}
+.call code{font-family:var(--mono);font-weight:500}
+
+/* people / links */
+.byline{display:flex;align-items:center;gap:28px}
+.byline img{width:100px;height:100px;border-radius:50%;border:2px solid var(--rule);background:#fff}
+.byline .nm{font-size:50px;font-weight:700}
+.byline .ev{font-size:40px;color:var(--sub);margin-left:24px}
+.intro{flex-direction:row;align-items:center;justify-content:center;gap:120px;padding:0}
+.icon{width:440px;height:440px;border-radius:50%;border:2px solid var(--rule);background:#fff;display:block}
+.name{font-size:168px;font-weight:700;letter-spacing:-.02em;line-height:1.05;margin-bottom:44px}
+.chipx{display:inline-flex;align-items:center;gap:.36em;font-size:52px;font-weight:700;line-height:1;white-space:nowrap;
+  padding:.3em .63em .32em .64em;border-radius:999px;background:var(--ink);color:var(--bg)}
+/* optical: the underscores and descenders pull the mass down, so lift the content a little */
+.chipx.xid{padding:.25em .63em .37em .64em}
+.chipx.xid svg{position:relative;top:.06em}
+.chipx svg{width:.95em;height:.95em;fill:currentColor;flex:none}
+.chipx.mono{font-weight:500}
+
+/* rules */
+.bans{display:flex;gap:120px;font-size:124px;font-weight:400}
+.ban{position:relative;display:inline-block}
+.ban .st{position:absolute;left:-14px;right:-14px;top:50%;height:10px;margin-top:-3px;background:var(--warn);border-radius:5px;transform-origin:0 50%}
+
+/* overview / dividers */
+.ovl{display:flex;flex-direction:column;align-items:flex-start;gap:20px}
+.ovit{position:relative;font-size:76px;font-weight:700;letter-spacing:-.01em;line-height:1.3;white-space:nowrap;padding:0 .26em;margin-left:-.26em}
+.ovit .no{display:inline-block;width:1.3em;color:var(--a)}
+.ovit.big{font-size:150px}
+
+/* ending */
+.end{position:absolute;inset:0}
+.end .ttl{position:absolute;left:0;right:0;top:170px;text-align:center;white-space:nowrap}
+.strk{position:relative;display:inline-block}
+.pl{padding-bottom:170px}
+.pl .title{font-size:200px} .pl .fix{font-size:170px}
+.strk .st{position:absolute;left:-8px;right:-8px;top:52%;height:13px;background:var(--warn);border-radius:7px;transform-origin:0 50%}
+.strk .fix{position:absolute;left:-50%;right:-50%;top:100%;text-align:center;font-size:124px;font-weight:800;line-height:1.1;color:var(--warn);white-space:nowrap}
+.end .who{position:absolute;left:0;right:0;top:600px;display:flex;justify-content:center;align-items:center;gap:100px}
+.prof{display:flex;align-items:center;gap:44px;text-align:left}
+.prof img{width:188px;height:188px;border-radius:50%;border:2px solid var(--rule);background:#fff}
+.prof .nm{font-size:72px;font-weight:700;line-height:1.1;margin-bottom:26px}
+.vr{width:3px;height:220px;border-radius:2px;background:var(--rule)}
+.repo{display:flex;align-items:center;gap:44px}
+.qrc{width:300px;height:300px;padding:16px;background:#fff;border:2px solid var(--rule);border-radius:34px;color:var(--ink)}
+.qrc svg{width:100%;height:100%;display:block}
+.repo .chipx{font-size:50px}
+
+/* notes overlay + presenter */
+#notes{position:fixed;left:0;right:0;bottom:0;background:rgba(26,27,24,.92);color:#f5f4ef;font-size:22px;line-height:1.7;padding:18px 28px;display:none;z-index:20}
+body.shownotes #notes{display:block}
+#pres{display:none}
+body.presenter #stage,body.presenter #notes{display:none!important}
+body.presenter{overflow:auto}
+body.presenter #pres{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr;gap:20px 28px;padding:24px;height:100vh}
+.p-top{grid-column:1/3;display:flex;gap:40px;align-items:baseline}
+.p-top .clock{font-size:64px;font-weight:800;font-variant-numeric:tabular-nums}
+.p-top .plan{font-size:28px;color:var(--sub)}
+.p-top .late{color:var(--warn)}
+.p-top button{font:inherit;font-size:18px;padding:6px 14px;border:1px solid var(--faint);background:#fff;border-radius:6px;cursor:pointer}
+.p-view{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;border:1px solid var(--rule);background:var(--bg)}
+.p-view .inner{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0}
+.p-col{display:flex;flex-direction:column;gap:16px;min-height:0}
+.p-label{font-size:16px;color:var(--sub);letter-spacing:.1em}
+.p-notes{font-size:30px;line-height:1.75;overflow:auto}
+</style>
+</head>
+<body>
+<div id="stage"><div id="bar"></div></div>
+<div id="notes"></div>
+<div id="pres">
+  <div class="p-top"><span class="clock" id="pClock">0:00</span><span class="plan" id="pPlan"></span><span class="plan" id="pIdx"></span>
+    <button id="pReset">タイマーリセット</button></div>
+  <div class="p-col"><div class="p-label">いま</div><div class="p-view" id="pNow"><div class="inner"></div></div>
+    <div class="p-label">次</div><div class="p-view" id="pNext" style="width:60%"><div class="inner"></div></div></div>
+  <div class="p-col"><div class="p-label">ノート</div><div class="p-notes" id="pNotes"></div></div>
+</div>
+
+<!-- @@ICON@@ -->
+<script>window.ICON = "";</script>
+<!-- @@/ICON@@ -->
+<!-- @@TRACES@@ -->
+<script>window.TRACES = [];</script>
+<!-- @@/TRACES@@ -->
+<!-- @@QR@@ -->
+<script>window.QR = "";</script>
+<!-- @@/QR@@ -->
+
+<script>
+'use strict';
+/* =========================================================================
+   Authoring helpers
+   A frame is static HTML. Elements that keep their data-k between two
+   consecutive frames morph (position, size, colour); everything else fades.
+   data-from="k" makes a new element start where old element k was.
+   Frame options drawn after layout:
+     mark  explicit markers  {on:[keys], k, tone, draw}
+           (glyphs with m-a / m-b get one merged marker per run automatically)
+     fly   copies that fly from old keys to sit under new ones {src, dst, k, text|mark, tone, cls, dy, stagger}
+     call  overlay callouts  {on:[keys], text, tone, below}
+     pre   index of a frame to take preKeys' start positions from
+   ========================================================================= */
+const E = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const ICON = window.ICON || '';
+const range = (p, a, b) => Array.from({ length: b - a }, (_, i) => p + (a + i));
+const SVG_X = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>';
+const SVG_GH = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>';
+
+/* Perl-ish syntax classes, per character */
+const TOK = /(\$[&_\w]+)|("[^"]*"|'[^']*')|(\b(?:print|eval)\b)|(\\.)|(\(\?(?:[={:|]|<=)|[()*+?.{}|[\]]|\$(?=\/))|(\bs(?=\/))|((?<=\s)#.*$)|(\/[a-z]+(?=[;\s]|$)|\/|[;=])|(\s+)|(.)/gy;
+const TCLS = [null, 'var', 'str', 'kw', 'esc', 'meta', 'op', 'cmt', 'punct', 'ws', 'lit'];
+function classes(text, lang) {
+  const out = [];
+  if (lang !== 'perl') { for (const _ of text) out.push(''); return out; }
+  TOK.lastIndex = 0; let m;
+  while (TOK.lastIndex < text.length && (m = TOK.exec(text))) {
+    let k = 1; while (m[k] === undefined) k++;
+    for (const _ of m[0]) out.push('t-' + TCLS[k]);
+  }
+  return out;
+}
+/* seg = [keyPrefix ('=' prefix: exact key), text, {cls, tc, from:[keys], hl:true|[idx], hlc:'a'|'b', stagger}] */
+function line(segs, lang = 'perl') {
+  const full = segs.map(s => s[1]).join('');
+  const cl = classes(full, lang);
+  let p = 0, out = '';
+  for (const [key, text, o = {}] of segs) {
+    [...text].forEach((ch, j) => {
+      const syn = cl[p++];
+      const hl = (o.hl === true || (o.hl && o.hl.includes(j))) ? 'm-' + (o.hlc || 'a') + (o.w ? ' mw' : '') : '';
+      const c = [o.tc || syn, o.cls || '', hl].join(' ');
+      const from = o.from ? ` data-from="${o.from[j % o.from.length]}"` : '';
+      const st = o.stagger != null ? ` data-delay="${o.stagger}"` : '';
+      const k = key[0] === '=' ? key.slice(1) : key + j;
+      out += `<span class="g ${c}" data-k="${k}"${from}${st}>${E(ch)}</span>`;
+    });
+  }
+  return out;
+}
+const data = (segs, cls = '') => `<div class="data ${cls}">${line(segs, 'data')}</div>`;
+const dl = segs => line(segs, 'data');
+const code = (key, lines, cls = '') =>
+  `<div class="code ${cls}" data-box="${key}">${lines.map(l => `<div class="ln">${l}</div>`).join('')}</div>`;
+const K = (key, html, cls = '', tag = 'div') => `<${tag} class="${cls}" data-k="${key}">${html}</${tag}>`;
+const xs = n => 'x'.repeat(n);
+const HL = (hlc = 'a', extra = {}) => Object.assign({ hl: true, hlc }, extra);
+/* before / regex / after on a fixed grid */
+const conv = (before, mid, after, o = {}) => `<div class="f c"><div class="conv ${after ? 'done' : ''}">
+  <div class="before data ${o.bsize || o.size || 'm'}">${before}</div>
+  <div class="mid">${mid || ''}</div>${mid && !o.noArrow ? ARROW('arr1', 'a1') : ''}${after && !o.noArrow ? ARROW('arr2', 'a2') : ''}
+  <div class="after data ${o.asize || o.size || 'm'}"><span class="rw">${after || '&nbsp;'}${o.eq ? K(o.eqk || 'eq', o.eq, 'eq', 'span') : ''}</span></div></div></div>`;
+const ARROW = (k, c) => `<svg class="arr ${c}" data-k="${k}" viewBox="0 0 32 52" aria-hidden="true"><path d="M16 4v42M5 35l11 11 11-11"/></svg>`;
+const reBox = (key, segs, cls = 'sm') => code(key, [line(segs)], cls);
+
+const F = [];
+const frame = o => F.push(o);
+
+/* =========================================================================
+   タイトル / 自己紹介 / 導入
+   ========================================================================= */
+const XID = (k = 'xid') => K(k, `${SVG_X}@__cp20__`, 'chipx xid', 'span');
+frame({ sec: 6, notes: '「正規表現で電卓を作る」という話をします。',
+  html: `<div class="f c"><div class="nowrap">${K('t1', '正規表現で電卓を', 'display title', 'span')}${K('t2', '作る', 'display title', 'span')}</div>
+    <div class="byline"><img data-k="icon" src="${ICON}" alt=""><span class="nm" data-k="name">しーぴー🍀</span><span class="ev" data-k="ev">YAPC::Tokyo 2026</span></div></div>` });
+frame({ sec: 6, notes: 'しーぴーです。よろしくお願いします。',
+  html: `<div class="f intro"><img class="icon" data-k="icon" src="${ICON}" alt="">
+    <div><div class="name" data-k="name">しーぴー🍀</div>${XID()}</div></div>` });
+frame({ sec: 3, notes: '……本題の前に、1つだけ言わせてください。',
+  html: `<div class="f c">${K('bd1', '1つだけ言わせてください', 'msg')}</div>` });
+frame({ sec: 4, notes: '今日、誕生日です！', fx: 'confetti',
+  html: `<div class="f c">${K('bd2', '今日、誕生日です', 'huge pop')}</div>` });
+const intro = n => `<div class="f">
+  ${K('q1', '最近の正規表現って、<br>表現力すごいですよね', 'lead')}
+  ${n > 1 ? K('q2', '電卓、作れる気がしませんか？', 'lead') : ''}
+  ${n > 2 ? K('q3', 'しますよね？', 'display a') : ''}</div>`;
+frame({ sec: 4, notes: '最近の正規表現って、表現力すごいですよね。', html: intro(1) });
+frame({ sec: 3, notes: '電卓くらい、作れる気がしませんか？', html: intro(2) });
+frame({ sec: 3, notes: '……しますよね？', html: intro(3) });
+
+/* =========================================================================
+   クイズ
+   ========================================================================= */
+const qL1 = line([['L1_', '$_ = "(3+6)*8";']]);
+const qL3 = (hl) => line([['L3_', 'print;'], ['L3c', '   # '], ['L3n', '72', Object.assign({ tc: 't-cmt' }, hl ? HL('a', { w: true }) : {})]]);
+const quiz = (l2, dim, hl) => code('quiz', [qL1, l2, qL3(hl)], 'quiz ' + (dim ? 'dimcode' : ''));
+const S = [['s', 's/']];
+const hint = (mid, hl) => line([...S, ['h', '.*(?{ ', { hl }], ...mid, ['t', ' })', { hl }], ['r1', '/'], ['rv', '$r', { hl }], ['r2', '/;']]);
+const EE = (hl) => line([...S, ['h', '.'], ['plus', '+'], ['r1', '/'], ['=e10', '$'], ['=e11', '&'], ['=r20', '/'], ['ee', 'ee', { hl }], ['=r21', ';']]);
+
+frame({ sec: 7, notes: 'いきなりクイズです。$_ に式が入っています。この穴を埋めて 72 を出してください。正規表現 1 つで。',
+  html: `<div class="f c">${quiz(line(S) + K('hole', '', 'hole', 'span') + line([['r1', '/']]) + K('hole2', '', 'hole rv', 'span') + line([['r2', '/;']]))}</div>` });
+frame({ sec: 6, notes: 'ヒント。Perl の正規表現には (?{ }) という、マッチの途中で Perl のコードを動かせる構文があります。結果を $r に入れて、置換の右側で使う。',
+  html: `<div class="f c">${quiz(hint([['dots', '...', { cls: 'sub', hl: true }]], true))}</div>`,
+  call: [{ on: [...range('h', 2, 6), 'dots0', 'dots2', 't1', 't2', 'rv0', 'rv1'], text: 'ヒント' }] });
+frame({ sec: 6, notes: '正解は、マッチした文字列 $& を eval して、その結果で置換する。これで 72 が出ます。',
+  html: `<div class="f c">${quiz(hint([['e', '$r = eval $&', { hl: true }]]))}</div>`,
+  call: [{ on: range('e', 0, 12), text: '正解！', tone: 'a' }] });
+frame({ sec: 4, notes: 'ちなみに /ee を使うともっと短く書けます。置換側を Perl の式として評価してくれます。',
+  html: `<div class="f c">${quiz(EE(true))}</div>`,
+  call: [{ on: ['ee0', 'ee1'], text: 'もっと短く' }] });
+frame({ sec: 3, notes: 'というわけで、電卓の完成です。',
+  html: `<div class="f c">${K('yay0', 'というわけで', 'lead')}${K('yay', '電卓の完成です', 'display title nowrap')}${quiz(EE(false), false, true)}</div>` });
+frame({ sec: 3, notes: 'ご清聴ありがとうございました。……',
+  html: `<div class="f c">${K('fin', '完', 'display title')}</div>` });
+frame({ sec: 5, notes: '……でもこれ、計算してるのは正規表現じゃなくて Perl ですよね。正規表現電卓というより、Perl 電卓。',
+  html: `<div class="f c"><div class="nowrap pl">${'<span class="strk">' + K('pc1', '正規表現', 'display title', 'span') + '<span class="st" data-k="pst" data-in="draw" data-delay="200"></span>' + '<span class="fix" data-k="pc3" data-delay="560">Perl</span>' + '</span>' + K('pc2', '電卓', 'display title', 'span')}</div></div>` });
+
+/* --- ルール (one frame; no syntax colours) ------------------------------- */
+const bans = () => {
+  const it = (i, html) => `<span class="ban">${html}<span class="st" data-k="st${i}" data-in="draw" data-delay="${i * 90}"></span></span>`;
+  return `<div class="bans mono">${it(0, line([['r', '/'], ['ee', 'e']], 'plain'))}${it(1, line([['bq', '(?{ })']], 'plain'))}${it(2, line([['bv', 'eval']], 'plain'))}</div>`;
+};
+frame({ sec: 7, notes: 'なので今日はズル禁止。/e も (?{ }) も eval も使いません。使っていいのは s/// の置換だけ。置換を何回か繰り返して計算します。',
+  html: `<div class="f">${K('ban', 'ズル禁止', 'display warn')}${bans()}
+    ${K('only', '使っていいのは<span class="mono">s///</span>の置換だけ', 'lead')}</div>` });
+
+/* =========================================================================
+   作り方 → 各セクション（一覧で次の項目にマーカー → 区切りスライド）
+   ========================================================================= */
+const X = 'x';
+const OV = [`数字を${X}の列にする`, '足し算と引き算', '掛け算と割り算', '優先順位とかっこ', `${X}の列を数字に戻す`];
+const ovItem = (i, cls = '') => K('ov' + i, `<span class="no">${i + 1}</span>${OV[i]}`, 'ovit ' + cls);
+const ovList = () => `<div class="f">${K('ovh', '作り方', 'body')}<div class="ovl">${OV.map((_, i) => ovItem(i)).join('')}</div></div>`;
+const OVM = key => ({ on: [key], k: 'ovmark', tone: 'a', draw: true });
+frame({ sec: 7, notes: '作り方です。数字を x の並びにして、足し算と引き算、掛け算と割り算、優先順位とかっこ、最後に数字に戻す。全部置換でやります。', html: ovList() });
+const ovAt = [];
+function section(i, notes) {
+  ovAt[i] = F.length;
+  frame({ sec: 2, notes: '', html: ovList(), mark: [OVM('ov' + i)], pre: i > 0 ? ovAt[i - 1] : null, preKeys: ['ovmark'] });
+  frame({ sec: 2, notes, html: `<div class="f c">${ovItem(i, 'big')}</div>`, mark: [OVM('ov' + i)] });
+}
+
+/* --- 1. 数字を x の列に ---------------------------------------------------- */
+section(0, 'まず数字をxの列にします。');
+const EXP = (p, o = {}) => [[`=${p}3`, '3', o[3] || {}], [`=${p}p`, '+', o.p || {}], [`=${p}4`, '4', o[4] || {}]];
+const RULE = (d, o = {}) => [[`R${d}a`, 's/'], [`R${d}d`, String(d), o.d || {}], [`R${d}b`, '/#'], [`R${d}x`, xs(d), o.x || {}], [`R${d}c`, '/']];
+frame({ sec: 5, notes: '3 を x 3 個にしたい。これは簡単で、3 を #xxx に置換するだけ。',
+  html: conv(dl(EXP('u')), reBox('re-u', RULE(3))) });
+frame({ sec: 4, notes: '3 が #xxx になりました。でも 4 はそのまま。',
+  html: conv(dl(EXP('u')), reBox('re-u', RULE(3)),
+    dl([['=v#', '#', { from: ['R3b1'] }], ['vx', 'xxx', { cls: 'a', from: range('R3x', 0, 3) }], ['=vp', '+', { from: ['up'] }], ['=v4', '4', { from: ['u4'] }]])) });
+const RULES = [0, 1, 2, 3, 4].map(r => line([...RULE(r), [`sp${r}`, ' '.repeat(14 - (6 + r))], ...RULE(r + 5)]));
+frame({ sec: 5, notes: '数字ごとに置換を書けばできるけど、10 本必要です。2 桁、3 桁もある。これを 1 回で済ませたい。',
+  html: conv(dl(EXP('u')), code('re-u', RULES, 'rules'), '', { noArrow: true }),
+  call: [{ on: [...range('R4a', 0, 2), ...range('R9c', 0, 1)], text: '1回で済ませたい', below: true }] });
+/* the rules' right-hand sides become a table that is appended to the string */
+const TBLRE = () => [['Ta', 's/$/'], ...[0, 1, 2, 3, 4].flatMap(d => [[`T${d}p`, '|', { tc: 't-str' }], [`T${d}d`, String(d), { tc: 't-str', from: [`R${d}d0`] }], [`T${d}k`, ':', { tc: 't-str' }], [`T${d}x`, xs(d), { tc: 't-str', from: range(`R${d}x`, 0, d) }]]), ['Tz', '|…', { tc: 't-str' }], ['Tc', '/']];
+const TABLE = (p, o = {}) => [...[0, 1, 2, 3, 4].flatMap(d => {
+  const h = o.hl === d ? HL('a', { w: true, cls: '' }) : {};
+  const f = (s, j) => o.from ? { from: o.from(s, d, j) } : {};
+  return [[`${p}${d}p`, '|', Object.assign({ cls: 'faint' }, f('p', d))], [`${p}${d}d`, String(d), Object.assign({ cls: 'faint' }, h, f('d', d))],
+    [`${p}${d}k`, ':', Object.assign({ cls: 'faint' }, h, f('k', d))], [`${p}${d}x`, xs(d), Object.assign({ cls: 'faint' }, h, o.from ? { from: range(o.fp + d + 'x', 0, d) } : {})]];
+}), [`${p}z`, '|…', Object.assign({ cls: 'faint' }, o.from ? { from: [o.fp + 'z0', o.fp + 'z1'] } : {})]];
+const fromT = { from: (s, d) => [`T${d}${s}0`], fp: 'T' };
+const fromW = { from: (s, d) => [`W${d}${s}0`], fp: 'W' };
+frame({ sec: 7, notes: 'そこで、置換の右側にあった「数字と x の対応」を、表にして文字列の後ろにくっつけます。これも置換 1 回。',
+  html: conv(dl(EXP('u')), reBox('re-u', TBLRE())),
+  call: [{ on: ['Ta2'], text: '末尾に表をくっつける', below: true }] });
+frame({ sec: 4, notes: 'こうなります。',
+  html: conv(dl(EXP('u')), reBox('re-u', TBLRE()),
+    dl([...EXP('w').map(([k, t]) => [k, t, { from: [k.replace('=w', 'u')] }]), ...TABLE('W', fromT)]), { asize: 't' }) });
+const LOOK = (hl) => [['La', 's/'], ['Lb', '(\\d)', hl ? HL() : {}], ['Lc', '(?=.*\\|'], ['Ld', '\\1', hl ? HL() : {}], ['Le', ':'], ['Lf', '(x*)', hl ? HL() : {}], ['Lg', ')'], ['Lh', '/#'], ['Li', '$2', hl ? HL() : {}], ['Lj', '/g']];
+const D_BEFORE = () => dl([...EXP('w', { 3: HL('a', { w: true }) }), ...TABLE('W', { hl: 3 })]);
+frame({ sec: 8, notes: 'あとは数字ごとに、先読みで後ろの表から同じ数字を探して、その x をキャプチャ。3 なら |3: の後ろの xxx。それで置き換えます。',
+  html: conv(D_BEFORE(), reBox('re-u', LOOK(true)), '', { bsize: 't' }),
+  call: [{ on: [...range('Lc', 0, 7), ...range('Lf', 0, 4)], text: '先読みで表を探す', tone: 'a', below: true }] });
+frame({ sec: 4, notes: '4 も同じように。1 回の置換で、全部の数字が x になりました。',
+  html: conv(D_BEFORE(), reBox('re-u', LOOK(true)),
+    dl([['=V#a', '#', { from: ['Lh1'] }], ['Va', 'xxx', { cls: 'a', from: range('W3x', 0, 3), stagger: 60 }], ['=Vp', '+', { from: ['wp'] }], ['=V#b', '#', { from: ['Lh1'] }], ['Vb', 'xxxx', { cls: 'b', from: range('W4x', 0, 4), stagger: 60 }], ...TABLE('V', fromW)]), { size: 't' }) });
+
+/* two digits: a tens table is appended too, and the tens digit looks up |1d: */
+const MDT = (o = {}) => {
+  const f = { cls: 'faint' };
+  const ent = (k, d, x, hl) => [[k + 'p', '|', f], [k + 'd', d, Object.assign({}, f, hl || {})], [k + 'k', ':', Object.assign({}, f, hl || {})], [k + 'x', x, Object.assign({}, f, hl || {})]];
+  return [['Me0', '|…', f], ...ent('M2', '2', 'xx', o.a), ...ent('M3', '3', 'xxx'), ['Me1', '|…', f], ...ent('M10', '10', xs(10), o.b), ['Me2', '|…', f]];
+};
+const MD_B = (hl) => dl([['=n1', '1', Object.assign({ cls: 'b' }, hl ? HL('b', { w: true }) : {})], ['=n2', '2', Object.assign({ cls: 'a' }, hl ? HL('a') : {})], ['=np', '+'], ['=n3', '3', { cls: 'p3' }],
+  ...MDT(hl ? { a: HL('a', { cls: 'a' }), b: HL('b', { w: true, cls: 'b' }) } : {})]);
+const MD_RE = (hl) => code('re-u', [line([['Q1', 's/'], ['Q2', '(?:(\\d)(?=\\d(?!\\d).*\\|\\g{1}0:(x*)))?', hl ? HL('b', { w: true }) : {}]]),
+  line([['Qsp', '  '], ['Q3', '(\\d)(?!\\d)(?=.*\\|\\3:(x*))', hl ? HL('a') : {}], ['Q4', '/#$2$4/g']])], 'md');
+frame({ sec: 6, notes: '2 桁は？ 表に十の位のぶんも足しておきます。|10: の後ろは x が 10 個。後ろにもう 1 桁ある数字は十の位なので、数字に 0 を付けて表を引く。一の位はさっきと同じ。',
+  html: conv(MD_B(true), MD_RE(true), '', { bsize: 't' }),
+  call: [{ on: [...range('M10d', 0, 2), 'M10k0', ...range('M10x', 0, 10)], text: '十の位の表', tone: 'b' }] });
+frame({ sec: 4, notes: '十の位の x 10 個と、一の位の xx がつながって 12。3 桁でも同じで、百の位の表を足すだけです。',
+  html: conv(MD_B(true), MD_RE(false),
+    dl([['=N#', '#'], ['Nt', xs(10), { cls: 'b', from: range('M10x', 0, 10), stagger: 30 }], ['No', 'xx', { cls: 'a', from: range('M2x', 0, 2) }],
+      ['=Np', '+', { from: ['np'] }], ['=N#2', '#'], ['N3', 'xxx', { cls: 'p3', from: range('M3x', 0, 3) }]]), { bsize: 't', asize: 's' }) });
+
+/* --- 2. 足し算と引き算 ------------------------------------------------------ */
+section(1, '足し算と引き算。');
+const ADD_B = (hl) => dl([['ah', '#'], ['a', 'xxx', { cls: 'a' }], ['dp', '+', hl ? HL('a', { w: true }) : {}], ['bh', '#', hl ? HL('a', { w: true }) : {}], ['b', 'xxxx', { cls: 'b' }]]);
+const ADD_RE = (hl) => reBox('re-add', [['ar', 's/'], ['ax', '\\+#', hl ? HL() : {}], ['ay', '//']]);
+frame({ sec: 5, notes: '足し算は簡単で、真ん中の +# を消すだけ。',
+  html: conv(ADD_B(true), ADD_RE(true)) });
+frame({ sec: 4, notes: 'くっついて x が 7 個。3+4=7。',
+  html: conv(ADD_B(false), ADD_RE(false),
+    dl([['a2h', '#', { from: ['ah0'] }], ['a2', 'xxx', { cls: 'a', from: ['a0', 'a1', 'a2'] }], ['b2', 'xxxx', { cls: 'b', from: ['b0', 'b1', 'b2', 'b3'] }]]),
+    { eq: '= 7', eqk: 'add:7' }) });
+const SUB_B = (hl) => dl([['sh', '#'], ['sa', 'xxxx', { cls: 'a' }], ['sc', 'xxx', Object.assign({ cls: 'a' }, hl ? HL('a', { w: true }) : {})], ['sm', '-'], ['sbh', '#'], ['sb', 'xxx', Object.assign({ cls: 'b' }, hl ? HL('a', { w: true }) : {})]]);
+const SUB_RE = (hl) => reBox('re-add', [['sr1', 's/'], ['sr2', '(x+)', hl ? HL() : {}], ['sr3', '-#'], ['sr4', '\\1', hl ? HL() : {}], ['sr5', '(?!x)'], ['sr6', '//']]);
+frame({ sec: 7, notes: '引き算。後方参照 \\1 で、左の終わりと右に「同じだけの x」があるところを探して、まとめて消します。',
+  html: conv(SUB_B(true), SUB_RE(true)),
+  call: [{ on: ['sr40', 'sr41'], text: '同じ数だけ', tone: 'a', below: true }] });
+frame({ sec: 4, notes: '7-3=4。答えがマイナスのときは、逆側を残して先頭に - を付けます。',
+  html: conv(SUB_B(false), SUB_RE(false),
+    dl([['s2h', '#', { from: ['sh0'] }], ['s2a', 'xxxx', { cls: 'a', from: range('sa', 0, 4) }]]),
+    { eq: '= 4', eqk: 'sub:4' }) });
+
+/* --- 3. 掛け算と割り算 ------------------------------------------------------ */
+section(2, '掛け算と割り算。');
+const MUL = [['m1', 's/'], ['mx', 'x'], ['mla', '(?=x*\\*#('], ['mc', 'x*'], ['mlb', '))'], ['mor', '|'], ['mdel', '\\*#x*'], ['m2', '/'], ['md', '$1'], ['m3', '/g']];
+const mulRe = (hl = {}) => reBox('re-mul', MUL.map(([k, t]) => [k, t, hl[k] ? HL(hl[k]) : {}]));
+const MB = (o = {}) => dl([['ph', '#'], ['p', 'xxx', Object.assign({ cls: 'a' }, o.p || {})], ['pm', '*'], ['qh', '#'], ['q', 'xx', Object.assign({ cls: 'b' }, o.q || {})]]);
+frame({ sec: 7, notes: '掛け算。3×2 は xx を 3 回並べたもの。正規表現はこれ。左側の x に、1 文字ずつマッチします。',
+  html: conv(MB({ p: HL('a', { w: true }) }), mulRe({ mx: 'a' })),
+  call: [{ on: ['mx0'], text: '左の<code>x</code>に1個ずつ', tone: 'a', below: true }] });
+frame({ sec: 7, notes: 'そこから先読みで右側まで見に行って、右の x の並びを $1 にキャプチャします。',
+  html: conv(MB({ p: HL('a'), q: HL('b', { w: true }) }), mulRe({ mx: 'a', mc: 'b' })),
+  call: [{ on: ['mc0', 'mc1'], text: '右の<code>x</code>を<code>$1</code>に', tone: 'b', below: true }] });
+const COPIES = [0, 1, 2].map(i => [`c${i}_`, 'xx', { cls: 'b', from: ['q0', 'q1'], stagger: i * 140 }]);
+frame({ sec: 7, notes: 'マッチした x 1 文字を $1、つまり xx に置き換える。/g なので左の x 全部で同じことが起きて、xx が 3 回並びます。後ろの *#xx は同じ置換の | の右側で消えます。3×2=6。',
+  html: conv(MB(), mulRe({ md: 'b' }), dl([['p2h', '#', { from: ['ph0'] }], ...COPIES]), { eq: '= 6', eqk: 'mul:6' }),
+  call: [{ on: range('mdel', 0, 5), text: '<code>$1</code>が空なので消える', below: true }] });
+const DV = (hl) => dl([['vh', '#'], ...[0, 1, 2].map(i => [`v${i}_`, 'xx', Object.assign({ cls: 'a' }, hl ? HL(i % 2 ? 'b' : 'a', { w: true }) : {})]), ['vr', 'x', { cls: 'a' }], ['vs', '/'], ['vdh', '#'], ['vd', 'xx', { cls: 'b' }]]);
+const DIV_RE = (hl) => reBox('re-mul', [['dv1', 's/'], ['dv2', '(?=(x)x*\\/#(x+))'], ['dv3', '\\2', hl ? HL() : {}], ['dv4', '|x+(?=\\/)|\\/#x+'], ['dv5', '/'], ['dv6', '$1', hl ? HL() : {}], ['dv7', '/g']]);
+frame({ sec: 7, notes: '割り算。右の x の数ぶん（ここでは 2 個ずつ）左から切り取って、それぞれ x 1 個に置き換えます。',
+  html: conv(DV(true), DIV_RE(true)),
+  call: [{ on: ['dv30', 'dv31'], text: '<code>xx</code>ずつ<code>x</code>1個に', tone: 'a', below: true }] });
+frame({ sec: 5, notes: '7÷2=3。余りと、/ から後ろは | の右側で消します。',
+  html: conv(DV(true), DIV_RE(false),
+    dl([['w2h', '#', { from: ['vh0'] }], ...[0, 1, 2].map(i => [`w${i}`, 'x', { cls: 'a', from: [`v${i}_0`], stagger: i * 120 }])]),
+    { eq: '= 3', eqk: 'div:3' }),
+  call: [{ on: range('dv4', 0, 15), text: '余りと<code>/</code>から後ろを消す', below: true }] });
+
+/* --- 4. 優先順位とかっこ ------------------------------------------------------- */
+section(3, '優先順位とかっこ。');
+const P1 = (o = {}) => [['rah', '#'], ['ra', 'xx', { cls: 'a' }], ['rp', '+'], ['rbh', '#', o.m || {}], ['rb', 'xxx', Object.assign({ cls: 'b' }, o.m || {})], ['rm', '*', o.m || {}], ['rch', '#', o.m || {}], ['rc', 'xxxx', Object.assign({ cls: 'p3' }, o.m || {})]];
+const P2 = (o = {}) => [['s2h', '#', { from: ['rah0'] }], ['s2a', 'xx', { cls: 'a', from: ['ra0', 'ra1'] }], ['s2p', '+', Object.assign({ from: ['rp0'] }, o.p || {})],
+  ['s2bh', '#', Object.assign({ from: ['rbh0'] }, o.p || o.x || {})], ['s2x', xs(12), Object.assign({ cls: 'p3', from: ['rc0', 'rc1', 'rc2', 'rc3'] }, o.x || {})]];
+const P2B = (o) => P2(o).map(([k, t, q]) => [k, t, Object.assign({}, q, { from: undefined })]);
+frame({ sec: 4, notes: '2+3*4。まず掛け算のところだけ置換して、',
+  html: conv(dl(P1({ m: HL('b', { w: true }) })), K('tag1', '先に掛け算', 'tag')) });
+frame({ sec: 3, notes: '3*4 が x 12 個になります。',
+  html: conv(dl(P1({ m: HL('b') })), K('tag1', '先に掛け算', 'tag'), dl(P2({ x: HL('b') }))) });
+frame({ sec: 3, notes: 'それから足し算の置換。',
+  html: conv(dl(P2B({ p: HL('a', { w: true }) })), K('tag2', 'それから足し算', 'tag')) });
+frame({ sec: 3, notes: '置換する順番が、そのまま演算子の優先順位になります。',
+  html: conv(dl(P2B({ p: HL('a') })), K('tag2', 'それから足し算', 'tag'),
+    dl([['s3h', '#', { from: ['s2h0'] }], ['s3a', 'xx', { cls: 'a', from: ['s2a0', 's2a1'] }], ['s3x', xs(12), { cls: 'p3', from: range('s2x', 0, 12) }]]),
+    { eq: '= 14', eqk: 'pre:14' }),
+  call: [{ on: range('s3x', 0, 12), text: '置換の順番が、そのまま優先順位', below: true }] });
+/* parens, nested: ((1+2)*2+1)*2 in unary. The innermost pair is the one with no parens inside. */
+const PR = (hl) => reBox('re-par', [['pa', '/'], ['pb', '\\('], ['pc', '('], ['pd', '[^()]*', hl ? HL() : {}], ['pe', ')'], ['pf', '\\)'], ['pg', '/']], 'pr');
+const N1 = (hl) => { const h = (o = {}) => Object.assign(o, hl ? HL('a', { w: true }) : {});
+  return dl([['n0', '('], ['n1', '(', h()], ['n2h', '#', h()], ['n2', 'x', h({ cls: 'a' })], ['n3', '+', h()], ['n4h', '#', h()], ['n4', 'xx', h({ cls: 'b' })], ['n5', ')', h()],
+    ['n6', '*'], ['n7h', '#'], ['n7', 'xx'], ['n8', '+'], ['n9h', '#'], ['n9', 'x'], ['n10', ')'], ['n11', '*'], ['n12h', '#'], ['n12', 'xx']]); };
+const N2 = (o = {}) => { const h = (q, inner) => Object.assign(q, inner && o.all ? HL('a', { w: true }) : {}, !inner || o.all ? {} : {}, q.k3 && o.res ? HL() : {});
+  const f = (k) => o.from ? { from: k } : {};
+  return dl([['o0', '(', h(f(['n00']), 1)], ['o1h', '#', h(Object.assign({ k3: 1 }, f(['n2h0'])), 1)], ['o1', 'xxx', h(Object.assign({ cls: 'a', k3: 1 }, f(['n20', 'n40', 'n41'])), 1)],
+    ['o6', '*', h(f(['n60']), 1)], ['o7h', '#', h(f(['n7h0']), 1)], ['o7', 'xx', h(f(['n70', 'n71']), 1)], ['o8', '+', h(f(['n80']), 1)], ['o9h', '#', h(f(['n9h0']), 1)], ['o9', 'x', h(f(['n90']), 1)], ['o10', ')', h(f(['n100']), 1)],
+    ['o11', '*', f(['n110'])], ['o12h', '#', f(['n12h0'])], ['o12', 'xx', f(['n120', 'n121'])]].map(([k, t, q]) => { delete q.k3; return [k, t, q]; })); };
+frame({ sec: 5, notes: 'かっこ。入れ子にもできます。いちばん内側のかっこは、中にかっこがないかっこ。正規表現で探すとこう。',
+  html: conv(N1(true), PR(true)),
+  call: [{ on: range('pd', 0, 6), text: '中にかっこがない', tone: 'a', below: true }] });
+frame({ sec: 4, notes: 'その中身だけを今までの置換で計算して、かっこごと置き換える。',
+  html: conv(N1(true), PR(false), N2({ from: true, res: true })) });
+frame({ sec: 4, notes: 'すると外側のかっこが、いちばん内側になる。同じことを繰り返して、',
+  html: conv(N2({ all: true }), PR(false)) });
+frame({ sec: 4, notes: 'かっこがなくなるまで続ける。あとは掛け算だけ。',
+  html: conv(N2({ all: true }), PR(false),
+    dl([['q1h', '#', Object.assign({ from: ['o1h0'] }, HL())], ['q1', xs(7), Object.assign({ cls: 'a', from: ['o10', 'o11', 'o12', 'o10', 'o11', 'o12', 'o90'], stagger: 30 }, HL())],
+      ['q11', '*', { from: ['o110'] }], ['q12h', '#', { from: ['o12h0'] }], ['q12', 'xx', { from: ['o120', 'o121'] }]])) });
+
+/* --- 5. x の列を数字に戻す ------------------------------------------------------ */
+section(4, '最後に、xの列を数字に戻します。');
+const X14 = (p, o = {}) => [[p + 'h', '#'], [p + 't', xs(10), o.t || {}], [p + 'o', xs(4), o.o || {}]];
+const DIG = (o = {}) => [['tat', '@', { cls: 'faint' }], ...[...'0123456789'].map((d, i) => ['=tb' + i, d, Object.assign({ cls: 'faint' }, o[i] || {})])];
+frame({ sec: 6, notes: '今度は逆。x が 14 個を「14」にしたい。さっきと同じで、拾ってくる元の表をくっつけます。今度は数字を並べただけの表。',
+  html: conv(dl(X14('z')), reBox('re-tbl', [['tra', 's/$/'], ['trb', '@0123456789', { tc: 't-str' }], ['trc', '/']]),
+    dl([...X14('y').map(([k, t]) => [k, t, { from: range(k.replace('y', 'z'), 0, t.length) }]), ['tat', '@', { cls: 'faint', from: ['trb0'] }],
+      ...[...'0123456789'].map((d, i) => ['=tb' + i, d, { cls: 'faint', from: ['trb' + (i + 1)] }])]), { size: 's' }),
+  call: [{ on: ['tat0', ...range('tb', 0, 10)], text: '数字を拾うための表', below: true }] });
+/* regex pieces: tens part T*, ones part O* */
+const ONES = (o = {}) => [['Oa', 'x{4}', o.a || {}], ['Ob', '(?=.*@'], ['Oc', '.{4}', o.c || {}], ['Od', '(\\d)', o.d || {}], ['Oe', ')']];
+const TENS = (o = {}) => [['Ta', '(?:x{10}){1}', o.a || {}], ['Tb', '(?=.*@'], ['Tc', '.{1}', o.c || {}], ['Td', '(\\d)', o.d || {}], ['Te', ')']];
+const DEC = (o, re) => conv(dl([...X14('y', o), ...DIG(o.tb || {})]), reBox('re-dec', re, 'md'), '', { size: 's' });
+frame({ sec: 5, notes: 'まず 1 の位。後ろの 4 個の x に注目します。',
+  html: DEC({ o: HL('a', { w: true }) }, ONES({ a: HL('a') })),
+  call: [{ on: range('Oa', 0, 4), text: 'まず1の位', tone: 'a', below: true }] });
+frame({ sec: 7, notes: 'x の数だけ、@ から先に進む。4 個なら 4 文字進んだところにある「4」。これを先読みでキャプチャします。',
+  html: DEC({ o: HL('a'), tb: { 4: HL('a', { cls: 'a' }) } }, ONES({ a: HL('a'), c: HL('a'), d: HL('a') })),
+  fly: [{ src: range('yo', 0, 4), dst: range('tb', 0, 4), k: 'cp', text: 'x', cls: 'a', dy: .86, stagger: 70 }],
+  call: [{ on: [...range('Oc', 0, 4), ...range('Od', 0, 4)], text: '<code>@</code>から4文字進んで拾う', tone: 'a', below: true }] });
+frame({ sec: 5, notes: '10 の位も同じ。x 10 個を 1 束として数えます。',
+  html: DEC({ t: HL('b', { w: true }), tb: { 4: { cls: 'a' } } }, [...TENS({ a: HL('b') }), ...ONES()]),
+  call: [{ on: range('Ta', 0, 12), text: '10個で1束', tone: 'b', below: true }] });
+frame({ sec: 7, notes: '1 束なら 1 文字進んで「1」。',
+  html: DEC({ t: HL('b'), tb: { 1: HL('b', { cls: 'b' }), 4: { cls: 'a' } } }, [...TENS({ a: HL('b'), c: HL('b'), d: HL('b') }), ...ONES()]),
+  fly: [{ src: ['mark:yt0'], dst: ['tb0'], k: 'bd', mark: true, tone: 'b', dy: .86 }],
+  call: [{ on: [...range('Tc', 0, 4), ...range('Td', 0, 4)], text: '1束なら1文字進む', tone: 'b', below: true }] });
+frame({ sec: 7, notes: '置換の右側に $1$2 と書けば、拾ってきた 1 と 4 が並んで「14」。# と表も一緒に消えます。',
+  html: conv(dl([...X14('y'), ...DIG({ 1: { cls: 'b' }, 4: { cls: 'a' } })]),
+    code('re-dec', [line([['Da', 's/#'], ...TENS({ d: HL('b') })]), line([['Dsp', '   '], ...ONES({ d: HL('a') }), ['Db', '.*/'], ['Dc', '$1', HL('b')], ['Dd', '$2', HL('a')], ['De', '/']])], 'md'),
+    dl([['o1', '1', { from: ['tb1'], cls: 'b' }], ['o4', '4', { from: ['tb4'], cls: 'a' }]]), { size: 's', asize: 'm' }) });
+/* the {4} / {1} are not the answer: every count is listed */
+const ALT = [9, 8, 7, 6, 5, 4, 3, 2, 1].map((n, r) => line([[`al${n}`, r ? '  |' : '(?|'],
+  ...(n === 4 ? ONES().map(([k, t]) => [k, t, HL('a')]) : [[`ax${n}`, `x{${n}}(?=.*@.{${n}}(\\d))`]])]))
+  .concat([line([['al0', '  |'], ['ax0', '(?=.*@(\\d))']]), line([['alz', ')']])]);
+frame({ sec: 5, notes: 'この {4} や {1} は答えを埋め込んでるわけじゃなくて、9 から 0 まで全部並べてあります。どれか 1 つが当たる。10 の位も同じ。どんな数でも、この 1 本で置換 1 回です。',
+  html: `<div class="f c">${code('re-alt', ALT, 'alt')}</div>`,
+  call: [{ on: range('al9', 0, 3), text: '9から0まで全部並べてある' }] });
+
+/* =========================================================================
+   ぜんぶ通す（Perl 版の置換をビルド時に記録したトレースで再生）
+   ========================================================================= */
+const TR = (window.TRACES || [])[0];
+const passJa = p => /^append/.test(p.name) ? '表をくっつける' : /^to-unary/.test(p.name) ? '数字をxに' : /^to-decimal/.test(p.name) ? '数字に戻す'
+  : /^mul/.test(p.name) ? (/\+/.test(p.before) ? '掛け算と足し算' : '掛け算') : /^add/.test(p.name) ? 'かっこの中の足し算' : p.name;
+const expand = s => s.replace(/x\{(\d+)\}/g, (_, n) => xs(+n));
+function toks(s) { // working string -> display tokens
+  const at = s.indexOf('@');
+  const body = at >= 0 ? s.slice(0, at) : s;
+  const out = [];
+  for (const t of body.match(/x+|./g) || []) {
+    if (t[0] === 'x' && t.length > 16) out.push({ t: 'chip', n: t.length });
+    else for (const c of t) out.push({ t: c });
+  }
+  if (at >= 0) out.push({ t: 'tbl' });
+  return out;
+}
+const tokId = t => t.t === 'chip' ? 'x' : t.t;
+function align(ts, prev, kind) {
+  const n = ts.length, m = prev.length, L = Array.from({ length: n + 1 }, () => new Int16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+    L[i][j] = tokId(ts[i]) === tokId(prev[j]) ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  const pairs = [];
+  for (let i = 0, j = 0; i < n && j < m;) {
+    if (tokId(ts[i]) === tokId(prev[j])) { pairs.push([i, j]); i++; j++; } else if (L[i + 1][j] >= L[i][j + 1]) i++; else j++;
+  }
+  const from = new Array(n).fill(null);
+  for (const [i, j] of pairs) from[i] = j;
+  // tokens between two matched anchors come from the old tokens between them
+  const b = [[-1, -1], ...pairs, [n, m]];
+  for (let q = 0; q + 1 < b.length; q++) {
+    const src = range('', b[q][1] + 1, b[q + 1][1]).map(Number);
+    if (!src.length) continue;
+    for (let i = b[q][0] + 1, c = 0; i < b[q + 1][0]; i++) from[i] = src[c++ % src.length];
+  }
+  if (kind === 'mul') { // the product is copies of the multiplier
+    const run = [];
+    for (let j = m - 1; j >= 0; j--) { if (tokId(prev[j]) === 'x') run.unshift(j); else if (run.length) break; }
+    let c = 0; ts.forEach((t, i) => { if (tokId(t) === 'x') from[i] = run[c++ % run.length]; });
+  }
+  if (kind === 'dec') { const tb = prev.findIndex(t => t.t === 'tbl'); ts.forEach((t, i) => { if (/\d/.test(t.t) && tb >= 0) from[i] = tb; }); }
+  return from;
+}
+const rowHtml = (row, k, withFrom) => row.ts.map((t, i) => {
+  const f = withFrom && row.from[i] != null ? ` data-from="d${k - 1}_${row.from[i]}"` : '';
+  const st = f && tokId(t) === 'x' ? ` data-delay="${Math.min(i * 14, 180)}"` : '';
+  const a = ` data-k="d${k}_${i}"${f}${st}`;
+  const c = row.col[i] || '';
+  if (t.t === 'chip') return `<span class="chip g ${c}"${a}>x<span class="sub">×${t.n}</span></span>`;
+  if (t.t === 'tbl') return `<span class="chip tbl g"${a}>表</span>`;
+  return `<span class="g ${c}"${a}>${E(t.t)}</span>`;
+}).join('');
+if (TR) {
+  // rebuild the whole working string around passes that only see a sub-expression
+  let cur = TR.expr, tbl = false;
+  const PAL = ['a', 'b', 'p3'];
+  const t0 = toks(TR.expr);
+  let ni = 0;
+  const rows = [{ ts: t0, col: t0.map((t, i) => /\d/.test(t.t) ? (i > 0 && /\d/.test(t0[i - 1].t) ? PAL[(ni - 1) % 3] : PAL[ni++ % 3]) : ''), from: [] }];
+  for (const p of TR.passes) {
+    const b = expand(p.before).split('@')[0], a = expand(p.after), aBody = a.split('@')[0];
+    if (a.includes('@')) tbl = true;
+    if (/^to-decimal/.test(p.name)) tbl = false;
+    if (cur === b) cur = aBody;
+    else if (cur.includes('(' + b + ')')) cur = cur.replace('(' + b + ')', aBody);
+    else if (cur.includes(b)) cur = cur.replace(b, aBody);
+    else cur = aBody;
+    const prev = rows[rows.length - 1];
+    const ts = toks(cur + (tbl ? '@' : ''));
+    const from = align(ts, prev.ts, /^mul/.test(p.name) ? 'mul' : /^to-decimal/.test(p.name) ? 'dec' : '');
+    rows.push({ ts, from, col: ts.map((t, i) => from[i] != null && t.t !== 'tbl' ? prev.col[from[i]] : ''), name: passJa(p), re: p.re, repl: p.repl, flags: p.flags });
+  }
+  rows[rows.length - 1].col = rows[rows.length - 1].ts.map(() => 'a');
+  const cut = (t, n) => t.length > n ? t.slice(0, n) + '…' : t;
+  const subst = r => { const rp = cut(r.repl || '', 22); return 's/' + cut(r.re, Math.max(14, 60 - rp.length)) + '/' + rp + '/' + (r.flags || ''); };
+  frame({ sec: 2, notes: `最後に、${TR.expr} を Perl で実際に計算してみます。`,
+    html: `<div class="f c">${K('demo:h', '<span class="mono">(1+2)*4</span>を計算してみる', 'ovit big')}</div>`, mark: [OVM('demo:h')] });
+  frame({ sec: 3, notes: '', html: conv(rowHtml(rows[0], 0, false)) });
+  for (let k = 1; k < rows.length; k++) {
+    frame({ sec: 3, notes: `${rows[k].name}。`,
+      html: conv(rowHtml(rows[k - 1], k - 1, false),
+        K('dn' + k, E(rows[k].name), 'tag') + code('re-demo', [line([['dr' + k + '_', subst(rows[k])]])], 'xs'),
+        rowHtml(rows[k], k, true)) });
+  }
+}
+
+frame({ sec: 3, notes: '今度こそ、ちゃんと正規表現電卓です。',
+  html: `<div class="f c"><div class="nowrap">${K('yay2a', '今度こそ', 'lead', 'span')}</div><div class="nowrap">${K('yay2b', '正規表現', 'display title a', 'span')}${K('yay2c', '電卓', 'display title', 'span')}</div></div>` });
+
+/* --- おわり + GitHub ------------------------------------------------------- */
+frame({ sec: 8, notes: '正規表現で電卓、作りました。コードは GitHub にあります。ありがとうございました。',
+  html: `<div class="end">
+    <div class="ttl">${K('t1', '正規表現で電卓を', 'display title', 'span')}<span class="strk">${K('t2', '作る', 'display title', 'span')}<span class="st" data-k="tst" data-in="draw" data-delay="260"></span><span class="fix" data-k="t3" data-delay="620">作った</span></span></div>
+    <div class="who">
+      <div class="prof"><img data-k="icon" src="${ICON}" alt=""><div><div class="nm" data-k="name">しーぴー🍀</div>${XID()}</div></div>
+      <div class="vr"></div>
+      <div class="repo">${K('qr', window.QR || '', 'qrc')}${K('gh', `${SVG_GH}cp-20/regex-calc`, 'chipx mono', 'span')}</div>
+    </div></div>` });
+
+/* =========================================================================
+   Morph engine
+   ========================================================================= */
+const D = 420, EASE = 'cubic-bezier(.22,1,.36,1)';
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const stage = document.getElementById('stage');
+let scale = 1, cur = -1, curEl = null, ghosts = [], autoT = 0;
+
+function fit() {
+  scale = Math.min(innerWidth / 1920, innerHeight / 1080);
+  stage.style.transform = `translate(-50%,-50%) scale(${scale})`;
+}
+addEventListener('resize', () => { fit(); if (cur >= 0) show(cur, false); });
+fit();
+
+function build(i) {
+  const t = document.createElement('template');
+  t.innerHTML = F[i].html.trim();
+  return t.content.firstElementChild;
+}
+const rel = (r, sr) => ({ l: (r.left - sr.left) / scale, t: (r.top - sr.top) / scale, w: r.width / scale, h: r.height / scale });
+const q = (el, k) => el.querySelector(`[data-k="${k}"]`);
+function union(rs, sr) {
+  const L = Math.min(...rs.map(r => r.left)), R = Math.max(...rs.map(r => r.right));
+  const T = Math.min(...rs.map(r => r.top)), B = Math.max(...rs.map(r => r.bottom));
+  return rel({ left: L, top: T, width: R - L, height: B - T }, sr);
+}
+/* markers hug the ink, with the same padding on all four sides */
+const MCTX = document.createElement('canvas').getContext('2d');
+const MCACHE = new Map();
+function fm(node) {
+  const cs = getComputedStyle(node);
+  const font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  let m = MCACHE.get(font);
+  if (!m) {
+    MCTX.font = font;
+    const H = MCTX.measureText('H'), x = MCTX.measureText('x');
+    m = { font, fa: H.fontBoundingBoxAscent, fd: H.fontBoundingBoxDescent, cap: H.actualBoundingBoxAscent, xh: x.actualBoundingBoxAscent, fs: parseFloat(cs.fontSize) };
+    MCACHE.set(font, m);
+  }
+  return m;
+}
+const measure = (m, s) => { MCTX.font = m.font; return MCTX.measureText(s); };
+/* box: advance box of the text in stage px {l, t, w, h}; returns the padded ink rect */
+function inkRect(m, text, box) {
+  const base = box.t + (box.h - (m.fa + m.fd)) / 2 + m.fa;
+  let top, bottom;
+  if (/^[acemnorsuvwxz]+$/.test(text)) { top = base - m.xh; bottom = base; }
+  else if (/[^\x00-\x7f]/.test(text)) { const t = measure(m, text); top = base - t.actualBoundingBoxAscent; bottom = base + t.actualBoundingBoxDescent; }
+  else { top = base - m.cap; bottom = base; }
+  const f = measure(m, text[0]), l = measure(m, text[text.length - 1]);
+  const left = box.l - f.actualBoundingBoxLeft, right = box.l + box.w - l.width + l.actualBoundingBoxRight;
+  const p = m.fs * .14;
+  return { l: left - p, t: top - p, w: right - left + 2 * p, h: bottom - top + 2 * p };
+}
+function markEl(r, tone, k, draw) {
+  const d = document.createElement('div');
+  d.className = 'mark ' + tone; d.dataset.k = k; d.dataset.plate = '';
+  if (draw) d.dataset.in = 'draw';
+  Object.assign(d.style, { left: r.l + 'px', top: r.t + 'px', width: r.w + 'px', height: r.h + 'px', borderRadius: Math.min(r.h, r.w) * .24 + 'px' });
+  return d;
+}
+/* one marker per run of adjacent highlighted glyphs, plus explicit ones.
+   Only markers flagged w / draw wipe in; the rest fade, so the wipe stays a cue. */
+function addMarks(el, fr) {
+  const sr = stage.getBoundingClientRect();
+  const out = [];
+  let run = null;
+  for (const g of el.querySelectorAll('.g')) {
+    const tone = g.classList.contains('m-a') ? 'a' : g.classList.contains('m-b') ? 'b' : null;
+    const r = g.getBoundingClientRect();
+    if (!tone) { run = null; continue; }
+    if (run && run.tone === tone && Math.abs(run.top - r.top) < 4 && Math.abs(r.left - run.right) < 4) {
+      run.gs.push(g); run.right = r.right; run.draw = run.draw || g.classList.contains('mw');
+    } else out.push(run = { tone, top: r.top, right: r.right, gs: [g], k: 'mark:' + g.dataset.k, draw: g.classList.contains('mw') });
+  }
+  const marks = out.map(run => {
+    const a = rel(run.gs[0].getBoundingClientRect(), sr), b = rel(run.gs[run.gs.length - 1].getBoundingClientRect(), sr);
+    const box = { l: a.l, t: a.t, w: b.l + b.w - a.l, h: a.h };
+    return markEl(inkRect(fm(run.gs[0]), run.gs.map(g => g.textContent).join(''), box), run.tone, run.k, run.draw);
+  });
+  for (const m of fr.mark || []) {
+    const node = q(el, m.on[0]); if (!node) continue;
+    const rg = document.createRange(); rg.selectNodeContents(node);
+    const mt = fm(node), r = inkRect(mt, node.textContent, rel(rg.getBoundingClientRect(), sr));
+    // proportional text (palt): take the first/last glyph boxes from the DOM and centre each glyph's ink in its box
+    const tns = []; const tw = document.createTreeWalker(node, NodeFilter.SHOW_TEXT); let tn;
+    while ((tn = tw.nextNode())) if (tn.data.trim()) tns.push(tn);
+    if (tns.length) {
+      const edge = (t, i) => {
+        const cr = document.createRange(); cr.setStart(t, i); cr.setEnd(t, i + 1);
+        const bx = rel(cr.getBoundingClientRect(), sr), mm = measure(mt, t.data[i]);
+        const w = mm.actualBoundingBoxLeft + mm.actualBoundingBoxRight;
+        return [bx.l + (bx.w - w) / 2, bx.l + (bx.w + w) / 2];
+      };
+      const f = tns[0], l = tns[tns.length - 1], p = mt.fs * .14;
+      const L = edge(f, f.data.search(/\S/))[0] - p, R = edge(l, l.data.trimEnd().length - 1)[1] + p;
+      r.l = L; r.w = R - L;
+    }
+    marks.push(markEl(r, m.tone || 'a', m.k, m.draw));
+  }
+  for (const d of marks.reverse()) el.prepend(d);
+}
+/* copies that fly from old elements to sit just under new ones */
+function addFly(el, fr) {
+  const sr = stage.getBoundingClientRect();
+  for (const f of fr.fly || []) f.dst.forEach((dk, j) => {
+    const dst = q(el, dk); if (!dst) return;
+    const r = rel(dst.getBoundingClientRect(), sr);
+    const dy = r.h * (f.dy == null ? .9 : f.dy);
+    let n;
+    if (f.mark) {
+      const ir = inkRect(fm(dst), dst.textContent, r);
+      n = markEl({ l: ir.l, t: ir.t + dy, w: ir.w, h: ir.h }, f.tone || 'a', f.k + j, false);
+      el.prepend(n);
+    } else {
+      n = document.createElement('span');
+      n.className = 'g ' + (f.cls || ''); n.textContent = f.text; n.dataset.k = f.k + j;
+      const cs = getComputedStyle(dst);
+      Object.assign(n.style, { position: 'absolute', left: r.l + 'px', top: r.t + dy + 'px', fontSize: cs.fontSize, lineHeight: cs.lineHeight, fontWeight: cs.fontWeight });
+      el.appendChild(n);
+    }
+    n.dataset.from = f.src[j % f.src.length];
+    n.dataset.delay = (f.stagger || 0) * j;
+  });
+}
+/* code blocks: the background is a separate plate so it can morph without dragging its glyphs */
+function addPlates(el) {
+  const sr = stage.getBoundingClientRect();
+  for (const b of el.querySelectorAll('[data-box]')) {
+    const r = rel(b.getBoundingClientRect(), sr);
+    const p = document.createElement('div');
+    p.className = 'plate'; p.dataset.k = 'plate:' + b.dataset.box; p.dataset.plate = '';
+    Object.assign(p.style, { left: r.l + 'px', top: r.t + 'px', width: r.w + 'px', height: r.h + 'px' });
+    el.prepend(p);
+  }
+}
+function addCalls(el, fr, idx) {
+  if (!fr.call) return;
+  const sr = stage.getBoundingClientRect();
+  fr.call.forEach((c, n) => {
+    const rs = c.on.map(k => q(el, k)).filter(Boolean).map(x => x.getBoundingClientRect());
+    if (!rs.length) return;
+    const L = Math.min(...rs.map(r => r.left)), R = Math.max(...rs.map(r => r.right));
+    const T = Math.min(...rs.map(r => r.top)), B = Math.max(...rs.map(r => r.bottom));
+    const d = document.createElement('div');
+    d.className = `call ${c.tone || ''} ${c.below ? 'below' : ''}`;
+    d.dataset.k = `call:${idx}:${n}`; d.dataset.call = '';
+    d.innerHTML = c.text;
+    el.appendChild(d);
+    const w = d.offsetWidth, h = d.offsetHeight;
+    const cx = ((L + R) / 2 - sr.left) / scale;
+    const left = Math.max(40, Math.min(1880 - w, cx - w / 2));
+    d.style.left = left + 'px';
+    d.style.top = (c.below ? (B - sr.top) / scale + 24 : (T - sr.top) / scale - h - 24) + 'px';
+    d.style.setProperty('--tl', (cx - left - 14) + 'px');
+    d.style.transformOrigin = `${cx - left}px ${c.below ? '0' : '100%'}`;
+  });
+}
+function decorate(el, fr, idx) { addMarks(el, fr); addFly(el, fr); addPlates(el); addCalls(el, fr, idx); }
+function snapshot(root) {
+  const m = new Map();
+  if (!root) return m;
+  for (const el of root.querySelectorAll('[data-k]')) {
+    const cs = getComputedStyle(el);
+    m.set(el.dataset.k, { r: el.getBoundingClientRect(), c: cs.color, bg: cs.backgroundColor, el });
+  }
+  return m;
+}
+function settle() {
+  for (const a of document.getAnimations()) { try { a.finish(); } catch (_) {} }
+  for (const gh of ghosts) gh.remove();
+  ghosts = [];
+}
+
+/* confetti: one WebGL2 draw call per frame. Each piece is an instanced quad whose path
+   (gravity + linear air drag, closed form) is evaluated in the vertex shader, so the CPU only
+   uploads the particle table once and then just bumps a time uniform. */
+function confetti(el) {
+  const cv = document.createElement('canvas');
+  cv.className = 'cfx';
+  const px = Math.min(2, (devicePixelRatio || 1) * scale);
+  cv.width = Math.round(1920 * px); cv.height = Math.round(1080 * px);
+  el.appendChild(cv);
+  const gl = cv.getContext('webgl2', { premultipliedAlpha: true, antialias: true });
+  if (!gl) { cv.remove(); return; }
+  const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); return o; };
+  const prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, `#version 300 es
+    layout(location=0) in vec2 corner;
+    layout(location=1) in vec4 a0; // x0 y0 vx vy
+    layout(location=2) in vec4 a1; // delay life w h
+    layout(location=3) in vec4 a2; // r g b round
+    layout(location=4) in vec3 a3; // rot0 spin phase
+    uniform float t;
+    const float K = 3.5, G = 2000.0;
+    out vec4 col; out vec2 uv; out float rnd;
+    void main() {
+      float s = t - a1.x;
+      if (s < 0.0 || s > a1.y) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+      float e = 1.0 - exp(-K * s);
+      vec2 p = a0.xy + vec2(a0.z * e / K, (a0.w - G / K) * e / K + G * s / K);
+      p.x += sin(a3.z + s * 3.0) * 14.0;
+      float ang = radians(a3.x + a3.y * s);
+      vec2 c = corner * vec2(a1.z, a1.w * cos(a3.z + s * (6.0 + mod(a3.z * 7.0, 8.0))));
+      p += vec2(c.x * cos(ang) - c.y * sin(ang), c.x * sin(ang) + c.y * cos(ang));
+      gl_Position = vec4(p.x / 960.0 - 1.0, 1.0 - p.y / 540.0, 0.0, 1.0);
+      col = vec4(a2.rgb, clamp((a1.y - s) / (a1.y * 0.15), 0.0, 1.0));
+      uv = corner * 2.0; rnd = a2.a;
+    }`));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, `#version 300 es
+    precision mediump float;
+    in vec4 col; in vec2 uv; in float rnd; out vec4 o;
+    void main() { if (rnd > 0.5 && dot(uv, uv) > 1.0) discard; o = vec4(col.rgb * col.a, col.a); }`));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { cv.remove(); return; }
+
+  const root = getComputedStyle(document.documentElement);
+  const hex = h => { h = h.trim().replace('#', ''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255); };
+  const cols = ['--a', '--b', '--p3', '--warn'].map(v => hex(root.getPropertyValue(v))).concat([hex('#e0a800'), hex('#e8578a'), hex('#2aa7a0')]);
+  const R = Math.random, D = [];
+  let end = 0;
+  const piece = (x, y, ang, sp, delay, life) => {
+    const strip = R() < .15, w = strip ? 8 + R() * 6 : 12 + R() * 12, h = strip ? 46 + R() * 30 : w * (.5 + R() * .9);
+    const c = cols[(R() * cols.length) | 0];
+    D.push(x, y, Math.cos(ang) * sp, Math.sin(ang) * sp, delay, life, w, h, c[0], c[1], c[2], !strip && R() > .8 ? 1 : 0, R() * 360, (R() - .5) * 900, R() * 6.28);
+    end = Math.max(end, delay + life);
+  };
+  for (const [cx, dir] of [[-20, 1], [1940, -1]]) for (let wave = 0; wave < 2; wave++)
+    for (let n = 0; n < (wave ? 70 : 170); n++)
+      piece(cx, 1100, -Math.PI / 2 + dir * (.28 + R() * .42), 4000 + R() * 2500, wave * .9 + R() * .16, 3.6 + R() * 1.4);
+  for (let n = 0; n < 90; n++) piece(R() * 1920, -60, Math.PI / 2, 60 + R() * 120, 1.3 + R() * 1.8, 4.2 + R() * 1);
+  const N = D.length / 15;
+
+  const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+  const quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-.5, -.5, .5, -.5, -.5, .5, .5, .5]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(D), gl.STATIC_DRAW);
+  [[1, 4, 0], [2, 4, 4], [3, 4, 8], [4, 3, 12]].forEach(([loc, n, off]) => {
+    gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, gl.FLOAT, false, 60, off * 4); gl.vertexAttribDivisor(loc, 1);
+  });
+  gl.useProgram(prog);
+  const uT = gl.getUniformLocation(prog, 't');
+  gl.viewport(0, 0, cv.width, cv.height);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  gl.clearColor(0, 0, 0, 0);
+  const t0 = performance.now();
+  const tick = now => {
+    const t = (now - t0) / 1000;
+    if (!cv.isConnected || t > end) { const x = gl.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); cv.remove(); return; }
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.uniform1f(uT, t);
+    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, N);
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+function show(i, animate) {
+  i = Math.max(0, Math.min(F.length - 1, i));
+  clearTimeout(autoT);
+  settle();
+  const snap = animate && !REDUCED ? snapshot(curEl) : null;
+  // keys the previous frame lacks can start where they were in an earlier frame
+  if (snap && F[i].pre != null) {
+    const need = (F[i].preKeys || []).filter(k => !snap.has(k));
+    if (need.length) {
+      const g = build(F[i].pre);
+      g.style.visibility = 'hidden';
+      stage.appendChild(g);
+      decorate(g, F[F[i].pre], F[i].pre);
+      const s2 = snapshot(g);
+      for (const k of need) if (s2.has(k)) snap.set(k, Object.assign(s2.get(k), { pre: true }));
+      g.remove();
+    }
+  }
+  const el = build(i);
+  stage.appendChild(el);
+  decorate(el, F[i], i);
+  if (F[i].fx === 'confetti' && animate && !REDUCED) {
+    confetti(el);
+    const w = el.querySelector('.pop');
+    if (w) w.animate([{ transform: 'scale(.2) rotate(-8deg)', opacity: 0 }, { transform: 'scale(1.18) rotate(2deg)', opacity: 1, offset: .55 }, { transform: 'scale(.94) rotate(-1deg)', offset: .78 }, { transform: 'none' }],
+      { duration: 820, delay: 120, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'backwards' });
+  }
+  const old = curEl;
+  curEl = el; cur = i;
+
+  if (snap && old) {
+    const matched = new Set();
+    const flip = (node, s, delay) => {
+      const r = node.getBoundingClientRect();
+      if (!r.width && !r.height) return;
+      const dx = (s.r.left - r.left) / scale, dy = (s.r.top - r.top) / scale;
+      const cs = getComputedStyle(node);
+      const tf = node.dataset.plate !== undefined
+        ? `translate(${dx}px,${dy}px) scale(${s.r.width / r.width},${s.r.height / r.height})`
+        : `translate(${dx}px,${dy}px) scale(${r.height ? s.r.height / r.height : 1})`;
+      if (s.pre) {
+        node.animate([
+          { transform: tf, opacity: 0, easing: 'linear' },
+          { transform: tf, opacity: 1, offset: .3, easing: EASE },
+          { transform: 'none', opacity: 1 },
+        ], { duration: D * 1.7, delay: 80, fill: 'backwards' });
+        return;
+      }
+      node.animate([
+        { transform: tf, color: s.c, backgroundColor: s.bg },
+        { transform: 'none', color: cs.color, backgroundColor: cs.backgroundColor },
+      ], { duration: D, easing: EASE, delay, fill: 'backwards' });
+    };
+    const fadeIn = (node) => {
+      const delay = +(node.dataset && node.dataset.delay || 0);
+      const how = node.dataset && node.dataset.in;
+      if (node.dataset && node.dataset.call !== undefined) {
+        node.animate([{ opacity: 0, transform: 'scale(.85)' }, { opacity: 1, transform: 'none' }], { duration: 240, delay: 260, easing: EASE, fill: 'backwards' });
+      } else if (how === 'draw') {
+        node.animate([{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: 300, delay: 160 + delay, easing: 'cubic-bezier(.6,0,.2,1)', fill: 'backwards' });
+      } else if (how === 'rise') {
+        node.animate([{ opacity: 0, transform: 'translateY(.25em)' }, { opacity: 1, transform: 'none' }], { duration: 360, delay: 110 + delay, easing: EASE, fill: 'backwards' });
+      } else {
+        node.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: 110 + delay, easing: 'ease-out', fill: 'backwards' });
+      }
+    };
+    const walk = (node) => {
+      for (const ch of node.children) {
+        const k = ch.dataset.k;
+        if (k !== undefined) {
+          const s = snap.get(k);
+          const delay = +(ch.dataset.delay || 0);
+          if (s) { matched.add(k); flip(ch, s, 0); }
+          else if (ch.dataset.from && snap.get(ch.dataset.from)) flip(ch, snap.get(ch.dataset.from), delay);
+          else fadeIn(ch);
+        } else if (ch.querySelector('[data-k]')) walk(ch);
+        else fadeIn(ch);
+      }
+    };
+    walk(el);
+    for (const [k, s] of snap) if (matched.has(k)) s.el.style.visibility = 'hidden';
+    ghosts.push(old);
+    old.style.pointerEvents = 'none';
+    old.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 150, easing: 'ease-out', fill: 'forwards' })
+      .onfinish = () => { old.remove(); ghosts = ghosts.filter(x => x !== old); };
+  } else if (old) old.remove();
+
+  document.getElementById('bar').style.width = (100 * i / (F.length - 1)) + '%';
+  document.getElementById('notes').textContent = F[i].notes || '';
+  if (location.hash !== '#' + (i + 1)) history.replaceState(null, '', '#' + (i + 1));
+  post({ type: 'at', i });
+  if (animate && F[i].auto && i + 1 < F.length) autoT = setTimeout(() => show(i + 1, true), F[i].auto);
+}
+
+/* =========================================================================
+   Navigation, presenter, sync
+   ========================================================================= */
+const PRESENTER = /[?&]presenter\b/.test(location.search);
+let chan = null;
+try { chan = new BroadcastChannel('regexcalc-deck-v5'); } catch (_) {}
+function post(m) { if (chan && !PRESENTER) chan.postMessage(m); }
+function next() { show(cur + 1, true); }
+function prev() { let j = cur - 1; while (j > 0 && F[j].auto) j--; show(j, true); }
+function remote(cmd, i) { if (chan) chan.postMessage({ type: 'cmd', cmd, i }); }
+
+addEventListener('keydown', e => {
+  const k = e.key;
+  if (['ArrowRight', ' ', 'PageDown', 'Enter', 'ArrowDown'].includes(k)) { e.preventDefault(); PRESENTER ? remote('next') : next(); }
+  else if (['ArrowLeft', 'PageUp', 'Backspace', 'ArrowUp'].includes(k)) { e.preventDefault(); PRESENTER ? remote('prev') : prev(); }
+  else if (k === 'Home') PRESENTER ? remote('go', 0) : show(0, false);
+  else if (k === 'End') PRESENTER ? remote('go', F.length - 1) : show(F.length - 1, false);
+  else if (k === 'f' && !PRESENTER) { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
+  else if (k === 'n' && !PRESENTER) document.body.classList.toggle('shownotes');
+  else if (k === 'p' && !PRESENTER) window.open(location.pathname + '?presenter', 'regexcalc-presenter', 'width=1400,height=860');
+});
+
+function start() {
+  if (!PRESENTER) {
+    if (chan) chan.onmessage = e => {
+      const m = e.data;
+      if (m.type === 'cmd') { if (m.cmd === 'next') next(); else if (m.cmd === 'prev') prev(); else if (m.cmd === 'go') show(m.i, false); }
+      if (m.type === 'hello') post({ type: 'at', i: cur });
+    };
+    const h = parseInt(location.hash.slice(1), 10);
+    show(isNaN(h) ? 0 : h - 1, false);
+    addEventListener('hashchange', () => { const n = parseInt(location.hash.slice(1), 10) - 1; if (!isNaN(n) && n !== cur) show(n, false); });
+    return;
+  }
+  document.body.classList.add('presenter');
+  const t0key = 'regexcalc-t0';
+  let t0 = +sessionStorage.getItem(t0key) || 0, at = 0;
+  const cum = []; F.reduce((a, f, i) => (cum[i] = a + f.sec, cum[i]), 0);
+  const total = cum[cum.length - 1];
+  const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  const fill = (id, i) => {
+    const box = document.querySelector(`#${id} .inner`);
+    box.innerHTML = i < F.length ? F[i].html : '';
+    box.style.transform = `scale(${box.parentElement.clientWidth / 1920})`;
+  };
+  const render = () => {
+    fill('pNow', at); fill('pNext', at + 1);
+    document.getElementById('pNotes').textContent = F[at].notes || '';
+    document.getElementById('pIdx').textContent = `${at + 1} / ${F.length}`;
+  };
+  setInterval(() => {
+    const el = t0 ? (Date.now() - t0) / 1000 : 0;
+    document.getElementById('pClock').textContent = fmt(el);
+    const p = document.getElementById('pPlan');
+    p.textContent = `予定：${fmt(cum[at])}/${fmt(total)}`;
+    p.classList.toggle('late', !!t0 && el > cum[at] + 5);
+  }, 250);
+  if (chan) {
+    chan.onmessage = e => { if (e.data.type === 'at') { at = e.data.i; if (!t0 && at > 0) { t0 = Date.now(); sessionStorage.setItem(t0key, t0); } render(); } };
+    chan.postMessage({ type: 'hello' });
+  }
+  document.getElementById('pReset').onclick = () => { t0 = Date.now(); sessionStorage.setItem(t0key, t0); };
+  addEventListener('resize', render);
+  render();
+}
+// load every embedded face up front: plates and markers are measured right after layout,
+// so a weight that loads lazily would be measured with fallback metrics
+(document.fonts ? Promise.all([...document.fonts].map(f => f.load().catch(() => {}))).then(() => document.fonts.ready) : Promise.resolve()).then(start);
+window.__deck = { F, show, next, prev, get cur() { return cur; } };
+</script>
+</body>
+</html>
