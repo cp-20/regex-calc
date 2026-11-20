@@ -158,7 +158,7 @@ sub _lint_patterns {
             }
             else {
                 # 実行時の呼び出しは、同じサブルーチン内で形状テストから選んだ $k を渡す _dec($k) だけ
-                my $ok = $fn eq '_dec' && $args =~ /^\$k\z/ && _sub_has($text, \@lines, \@sub_of, $i, qr/\$k\s*=\s*\$\w+\s*=~\s*\/\^(?:-\?\\#\?)?x\{\d+\}\//);
+                my $ok = $fn eq '_dec' && $args =~ /^\$k\z/ && _sub_has($text, \@lines, \@sub_of, $i, qr/\$k\s*=\s*\$\w+\s*=~\s*\/\^(?:-\?\\#\?)?(?:\(\?:x\{\d+\}\)\{\d+\}|x\{\d+\})\//);
                 $ok ||= $fn eq '_fixed_dec_re' && $args eq '';
                 push @bad, "$name:" . ($i + 1) . ": runtime call $fn($args) may only pass a \$k chosen by /^x{N}/ shape tests"
                     unless $ok;
