@@ -19,6 +19,7 @@ https://cp-20.github.io/regex-calc/ で公開しています（`main`の`slides/
 ```sh
 slides/fonts/fetch.sh     # 初回のみ: LINE Seed JP / Monaspace Neon (OFL) を取得
 node slides/build.js      # src.html + Perlのトレース + フォントのサブセット → index.html
+slides/og.sh              # 最初のスライドからSNSシェア用画像 og.png を作る（Chromeを使用）
 ```
 
 必要な環境:
