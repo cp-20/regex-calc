@@ -168,7 +168,7 @@ perl bench/bench.pl --md
 
 ## スライド
 
-YAPC::Tokyo 2026 LTの発表資料は[`slides/index.html`](slides/index.html)に単一HTMLファイルとして同梱しています（オフライン動作対応）。閲覧方法やビルド手順は[`slides/README.md`](slides/README.md)を参照してください。
+YAPC::Tokyo 2026 LTの発表資料は[`slides/index.html`](slides/index.html)に単一HTMLファイルとして同梱しています（オフライン動作対応）。ブラウザでは https://cp-20.github.io/regex-calc/ からそのまま見られます。閲覧方法やビルド手順は[`slides/README.md`](slides/README.md)を参照してください。
 
 ## ディレクトリ構成
 

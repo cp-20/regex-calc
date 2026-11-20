@@ -4,7 +4,7 @@ YAPC::Tokyo 2026 LT「正規表現で電卓を作る」の発表資料です。[
 
 ## 閲覧方法
 
-[`index.html`](index.html)をブラウザで開きます。
+https://cp-20.github.io/regex-calc/ で公開しています（`main`の`slides/index.html`が更新されると自動でデプロイ）。手元では[`index.html`](index.html)をブラウザで開きます。
 
 | キー | 動作 |
 | --- | --- |
