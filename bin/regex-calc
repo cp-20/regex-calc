@@ -1,29 +1,37 @@
 #!/usr/bin/perl
-# usage: regex-calc [--trace] [--fixed] '(3+6)*8'
+# usage: regex-calc [--trace] [--fixed | --rewrite] '(3+6)*8'
 use strict; use warnings;
 use FindBin;
 use lib "$FindBin::Bin/../lib";
 use RegexCalc qw(calc calc_fixed);
+use RegexCalc::Rewrite qw(calc_rewrite);
 
-my ($trace, $fixed, @args);
+my ($trace, $fixed, $rewrite, @args);
 for (@ARGV) {
     if    ($_ eq '--trace') { $trace = 1 }
     elsif ($_ eq '--fixed') { $fixed = 1 }
-    elsif ($_ eq '-h' || $_ eq '--help') { print "usage: regex-calc [--trace] [--fixed] EXPR\n"; exit 0 }
+    elsif ($_ eq '--rewrite') { $rewrite = 1 }
+    elsif ($_ eq '-h' || $_ eq '--help') { print "usage: regex-calc [--trace] [--fixed | --rewrite] EXPR\n"; exit 0 }
     else  { push @args, $_ }
 }
-die "usage: regex-calc [--trace] [--fixed] EXPR\n" unless @args;
+die "usage: regex-calc [--trace] [--fixed | --rewrite] EXPR\n" unless @args;
 
 # 表示用: x の長い連続を x{72} のように縮める (電卓本体ではなく CLI 側の整形)
 sub squash { my $s = shift; $s =~ s/(x{6,})/'x{' . length($1) . '}'/ge; return $s }
 
-my $step = 0;
+my ($step, $last_re) = (0, '');
 if ($trace) {
-    $RegexCalc::TRACE = sub {
+    # 書き換え系モードは毎パス同じパターンなので、変わったときだけ表示する。'@' 以降の表は '@…' と縮める。
+    $RegexCalc::TRACE = $RegexCalc::Rewrite::TRACE = sub {
         my ($name, $re, $before, $after, $repl, $flags) = @_;
-        printf "#%d %s\n  pattern: %s\n  replace: %s\n  flags  : %s\n  before : %s\n  after  : %s\n", ++$step, $name, squash("$re"), squash($repl // ''), $flags // '', squash($before), squash($after);
+        my $same = "$re" eq $last_re;
+        $last_re = "$re";
+        s/\@#\+'0123456789x{10000}\z/\@…/ for $before, $after;
+        printf "#%d %s\n", ++$step, $name;
+        printf "  pattern: %s\n  replace: %s\n  flags  : %s\n", squash("$re"), squash($repl // ''), $flags // '' unless $same;
+        printf "  before : %s\n  after  : %s\n", squash($before), squash($after);
     };
 }
-my ($r, $n) = eval { $fixed ? calc_fixed($args[0]) : calc($args[0]) };
+my ($r, $n) = eval { $rewrite ? calc_rewrite($args[0]) : $fixed ? calc_fixed($args[0]) : calc($args[0]) };
 if ($@) { print STDERR $@; exit 1 }
 print $trace ? "result: $r  ($n s/// passes)\n" : "$r  ($n s/// passes)\n";

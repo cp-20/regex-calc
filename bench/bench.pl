@@ -9,6 +9,7 @@ use FindBin;
 use lib "$FindBin::Bin/../lib";
 use Time::HiRes qw(time);
 use RegexCalc qw(calc calc_fixed);
+use RegexCalc::Rewrite qw(calc_rewrite);
 
 my $md = 0;
 my @exprs;
@@ -32,15 +33,16 @@ sub fmt_us { my $u = shift; $u < 10 ? sprintf('%.2f', $u) : $u < 1000 ? sprintf(
 my @rows;
 for my $e (@exprs) {
     my ($v, $n) = eval { calc($e) };
-    if ($@) { (my $err = $@) =~ s/\s+\z//; push @rows, [$e, "error: $err", '-', '-']; next }
-    push @rows, [$e, $v, $n, fmt_us(per_call(\&calc, $e))];
+    if ($@) { (my $err = $@) =~ s/\s+\z//; push @rows, [$e, "error: $err", '-', '-', '-', '-']; next }
+    my (undef, $rn) = calc_rewrite($e);
+    push @rows, [$e, $v, $n, fmt_us(per_call(\&calc, $e)), $rn, fmt_us(per_call(\&calc_rewrite, $e))];
 }
 
 printf "perl %vd, %s\n\n", $^V, $^O;
 if ($md) {
-    print "| 式 | 結果 | `s///` の回数 | 1回あたり (µs) |\n| --- | ---: | ---: | ---: |\n";
-    printf "| `%s` | %s | %s | %s |\n", @$_ for @rows;
+    print "| 式 | 結果 | `s///` の回数 | 1回あたり (µs) | 書き換え系: 回数 | 書き換え系: µs |\n| --- | ---: | ---: | ---: | ---: | ---: |\n";
+    printf "| `%s` | %s | %s | %s | %s | %s |\n", @$_ for @rows;
 } else {
-    printf "%-20s %10s %7s %12s\n", 'expr', 'result', 'passes', 'us/call';
-    printf "%-20s %10s %7s %12s\n", @$_ for @rows;
+    printf "%-20s %10s %7s %12s %9s %12s\n", 'expr', 'result', 'passes', 'us/call', 'rewrite', 'us/call';
+    printf "%-20s %10s %7s %12s %9s %12s\n", @$_ for @rows;
 }
