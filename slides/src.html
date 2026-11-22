@@ -440,36 +440,44 @@ const P1 = (o = {}) => [['rah', '#'], ['ra', 'xx', { cls: 'a' }], ['rp', '+'], [
 const P2 = (o = {}) => [['s2h', '#', { from: ['rah0'] }], ['s2a', 'xx', { cls: 'a', from: ['ra0', 'ra1'] }], ['s2p', '+', Object.assign({ from: ['rp0'] }, o.p || {})],
   ['s2bh', '#', Object.assign({ from: ['rbh0'] }, o.p || o.x || {})], ['s2x', xs(12), Object.assign({ cls: 'p3', from: ['rc0', 'rc1', 'rc2', 'rc3'] }, o.x || {})]];
 const P2B = (o) => P2(o).map(([k, t, q]) => [k, t, Object.assign({}, q, { from: undefined })]);
-frame({ sec: 4, notes: '2+3*4。まず掛け算のところだけ置換して、',
-  html: conv(dl(P1({ m: HL('b', { w: true }) })), K('tag1', '先に掛け算', 'tag')) });
-frame({ sec: 3, notes: '3*4 が x 12 個になります。',
-  html: conv(dl(P1({ m: HL('b') })), K('tag1', '先に掛け算', 'tag'), dl(P2({ x: HL('b') }))) });
-frame({ sec: 3, notes: 'それから足し算の置換。',
-  html: conv(dl(P2B({ p: HL('a', { w: true }) })), K('tag2', 'それから足し算', 'tag')) });
-frame({ sec: 3, notes: '置換する順番が、そのまま演算子の優先順位になります。',
-  html: conv(dl(P2B({ p: HL('a') })), K('tag2', 'それから足し算', 'tag'),
+/* 足し算の規則に「両隣がもう掛け算・割り算の途中ではない」という条件を付ける。全部の規則を毎回まとめて試すだけで、掛け算が先に終わる */
+const ADDC = (hl = {}) => reBox('re-addc', [['ac1', 's/'], ['ac2', '(?<![*\\/])', hl.l ? HL('a') : {}], ['ac3', '(#x*)\\+#(x*)'], ['ac4', '(?![x*\\/])', hl.r ? HL('b') : {}], ['ac5', '/'], ['ac6', '$1$2'], ['ac7', '/']]);
+frame({ sec: 6, notes: '2+3*4。足し算の規則に条件を付けます。左の数の前と、右の数の後ろに、* や / がないときだけ足す。',
+  html: conv(dl(P1({ m: HL('b', { w: true }) })), ADDC({ l: 1, r: 1 })),
+  call: [{ on: range('ac4', 0, 10), text: '後ろに<code>*</code>があったら、まだ足さない', tone: 'b', below: true }] });
+frame({ sec: 4, notes: '規則は全部いっしょに試します。1 回目は、条件を満たす掛け算だけが当たって、3*4 が x 12 個に。',
+  html: conv(dl(P1({ m: HL('b') })), K('tag1', '1回目: 掛け算だけ当たる', 'tag'), dl(P2({ x: HL('b') }))) });
+frame({ sec: 3, notes: '2 回目で、やっと足し算の条件がそろう。',
+  html: conv(dl(P2B({ p: HL('a', { w: true }) })), K('tag2', '2回目: 足し算が当たる', 'tag')) });
+frame({ sec: 4, notes: '置換は同じものを繰り返すだけ。条件が、そのまま演算子の優先順位になります。',
+  html: conv(dl(P2B({ p: HL('a') })), K('tag2', '2回目: 足し算が当たる', 'tag'),
     dl([['s3h', '#', { from: ['s2h0'] }], ['s3a', 'xx', { cls: 'a', from: ['s2a0', 's2a1'] }], ['s3x', xs(12), { cls: 'p3', from: range('s2x', 0, 12) }]]),
     { eq: '= 14', eqk: 'pre:14' }),
-  call: [{ on: range('s3x', 0, 12), text: '置換の順番が、そのまま優先順位', below: true }] });
-/* parens, nested: ((1+2)*2+1)*2 in unary. The innermost pair is the one with no parens inside. */
-const PR = (hl) => reBox('re-par', [['pa', '/'], ['pb', '\\('], ['pc', '('], ['pd', '[^()]*', hl ? HL() : {}], ['pe', ')'], ['pf', '\\)'], ['pg', '/']], 'pr');
+  call: [{ on: range('s3x', 0, 12), text: '条件が、そのまま優先順位', below: true }] });
+/* parens, nested: ((1+2)*2+1)*2 in unary. The rules above also run inside parens ('(' and ')' are not '*' or '/').
+   A pair whose content became one number is simply dropped: s/\((#x*)\)/$1/ */
+const PR = (hl) => reBox('re-par', [['pa', 's/'], ['pb', '\\('], ['pc', '(#x*)', hl ? HL() : {}], ['pf', '\\)'], ['pg', '/$1/']], 'pr');
 const N1 = (hl) => { const h = (o = {}) => Object.assign(o, hl ? HL('a', { w: true }) : {});
-  return dl([['n0', '('], ['n1', '(', h()], ['n2h', '#', h()], ['n2', 'x', h({ cls: 'a' })], ['n3', '+', h()], ['n4h', '#', h()], ['n4', 'xx', h({ cls: 'b' })], ['n5', ')', h()],
+  return dl([['n0', '('], ['n1', '('], ['n2h', '#', h()], ['n2', 'x', h({ cls: 'a' })], ['n3', '+', h()], ['n4h', '#', h()], ['n4', 'xx', h({ cls: 'b' })], ['n5', ')'],
     ['n6', '*'], ['n7h', '#'], ['n7', 'xx'], ['n8', '+'], ['n9h', '#'], ['n9', 'x'], ['n10', ')'], ['n11', '*'], ['n12h', '#'], ['n12', 'xx']]); };
-const N2 = (o = {}) => { const h = (q, inner) => Object.assign(q, inner && o.all ? HL('a', { w: true }) : {}, !inner || o.all ? {} : {}, q.k3 && o.res ? HL() : {});
+/* after the sum inside: ((#xxx)*#xx+#x)*#xx */
+const NM = (o = {}) => { const f = (k) => o.from ? { from: k } : {}; const h = (q) => Object.assign(q, o.hl ? HL('a', { w: true }) : {});
+  return dl([['o0', '(', f(['n00'])], ['m1', '(', h(f(['n10']))], ['o1h', '#', h(f(['n2h0']))], ['o1', 'xxx', h(Object.assign({ cls: 'a' }, f(['n20', 'n40', 'n41'])))], ['m5', ')', h(f(['n50']))],
+    ['o6', '*', f(['n60'])], ['o7h', '#', f(['n7h0'])], ['o7', 'xx', f(['n70', 'n71'])], ['o8', '+', f(['n80'])], ['o9h', '#', f(['n9h0'])], ['o9', 'x', f(['n90'])], ['o10', ')', f(['n100'])],
+    ['o11', '*', f(['n110'])], ['o12h', '#', f(['n12h0'])], ['o12', 'xx', f(['n120', 'n121'])]]); };
+/* without the inner pair: (#xxx*#xx+#x)*#xx */
+const N2 = (o = {}) => { const h = (q, inner) => Object.assign(q, inner && o.all ? HL('a', { w: true }) : {});
   const f = (k) => o.from ? { from: k } : {};
-  return dl([['o0', '(', h(f(['n00']), 1)], ['o1h', '#', h(Object.assign({ k3: 1 }, f(['n2h0'])), 1)], ['o1', 'xxx', h(Object.assign({ cls: 'a', k3: 1 }, f(['n20', 'n40', 'n41'])), 1)],
-    ['o6', '*', h(f(['n60']), 1)], ['o7h', '#', h(f(['n7h0']), 1)], ['o7', 'xx', h(f(['n70', 'n71']), 1)], ['o8', '+', h(f(['n80']), 1)], ['o9h', '#', h(f(['n9h0']), 1)], ['o9', 'x', h(f(['n90']), 1)], ['o10', ')', h(f(['n100']), 1)],
-    ['o11', '*', f(['n110'])], ['o12h', '#', f(['n12h0'])], ['o12', 'xx', f(['n120', 'n121'])]].map(([k, t, q]) => { delete q.k3; return [k, t, q]; })); };
-frame({ sec: 5, notes: 'かっこ。入れ子にもできます。いちばん内側のかっこは、中にかっこがないかっこ。正規表現で探すとこう。',
-  html: conv(N1(true), PR(true)),
-  call: [{ on: range('pd', 0, 6), text: '中にかっこがない', tone: 'a', below: true }] });
-frame({ sec: 4, notes: 'その中身だけを今までの置換で計算して、かっこごと置き換える。',
-  html: conv(N1(true), PR(false), N2({ from: true, res: true })) });
-frame({ sec: 4, notes: 'すると外側のかっこが、いちばん内側になる。同じことを繰り返して、',
-  html: conv(N2({ all: true }), PR(false)) });
-frame({ sec: 4, notes: 'かっこがなくなるまで続ける。あとは掛け算だけ。',
-  html: conv(N2({ all: true }), PR(false),
+  return dl([['o0', '(', h(f(['o00']), 1)], ['o1h', '#', h(f(['o1h0']), 1)], ['o1', 'xxx', h(Object.assign({ cls: 'a' }, f(['o10', 'o11', 'o12'])), 1)],
+    ['o6', '*', h(f(['o60']), 1)], ['o7h', '#', h(f(['o7h0']), 1)], ['o7', 'xx', h(f(['o70', 'o71']), 1)], ['o8', '+', h(f(['o80']), 1)], ['o9h', '#', h(f(['o9h0']), 1)], ['o9', 'x', h(f(['o90']), 1)], ['o10', ')', h(f(['o100']), 1)],
+    ['o11', '*', f(['o110'])], ['o12h', '#', f(['o12h0'])], ['o12', 'xx', f(['o120', 'o121'])]]); };
+frame({ sec: 5, notes: 'かっこ。入れ子にもできます。かっこの中も、今までの規則がそのまま当たります。( や ) は * でも / でもないので、足し算の条件を満たす。',
+  html: conv(N1(true), K('tagp', 'かっこの中も同じ規則で', 'tag'), NM({ from: true })) });
+frame({ sec: 5, notes: '中が 1 つの数になったかっこは、外すだけ。',
+  html: conv(NM({ hl: true }), PR(true), N2({ from: true })),
+  call: [{ on: range('pc', 0, 5), text: '中が1つの数', tone: 'a', below: true }] });
+frame({ sec: 4, notes: 'これも同じ置換を繰り返すだけ。外側のかっこの中も計算されて、かっこが外れる。あとは掛け算だけ。',
+  html: conv(N2({ all: true }), K('tagq', '同じ置換を繰り返す', 'tag'),
     dl([['q1h', '#', Object.assign({ from: ['o1h0'] }, HL())], ['q1', xs(7), Object.assign({ cls: 'a', from: ['o10', 'o11', 'o12', 'o10', 'o11', 'o12', 'o90'], stagger: 30 }, HL())],
       ['q11', '*', { from: ['o110'] }], ['q12h', '#', { from: ['o12h0'] }], ['q12', 'xx', { from: ['o120', 'o121'] }]])) });
 
@@ -516,8 +524,19 @@ frame({ sec: 5, notes: 'この {4} や {1} は答えを埋め込んでるわけ�
    ぜんぶ通す（Perl 版の置換をビルド時に記録したトレースで再生）
    ========================================================================= */
 const TR = (window.TRACES || [])[0];
-const passJa = p => /^append/.test(p.name) ? '表をくっつける' : /^to-unary/.test(p.name) ? '数字をxに' : /^to-decimal/.test(p.name) ? '数字に戻す'
-  : /^mul/.test(p.name) ? (/\+/.test(p.before) ? '掛け算と足し算' : '掛け算') : /^add/.test(p.name) ? 'かっこの中の足し算' : p.name;
+/* 書き換え系モードは毎回同じ置換 (s/$STEP/.../g) なので、パスの名前は前後の文字列の違いから付ける */
+const cnt = (t, c) => t.split(c).length - 1;
+const passJa = (p, b, a) => {
+  if (/^append/.test(p.name)) return '表をくっつける';
+  if (/\d/.test(b)) return '数字をxに';
+  if (/^-?\d+$/.test(a)) return '数字に戻す';
+  const did = [];
+  if (cnt(a, '+') < cnt(b, '+')) did.push(/\(/.test(a) ? 'かっこの中の足し算' : '足し算');
+  if (cnt(a, '*') < cnt(b, '*')) did.push(cnt(a, '(') < cnt(b, '(') ? '掛け算（かっこごと）' : '掛け算');
+  if (cnt(a, '/') < cnt(b, '/')) did.push('割り算');
+  if (!did.length && cnt(a, '(') < cnt(b, '(')) did.push('かっこを外す');
+  return did.join('と') || p.name;
+};
 const expand = s => s.replace(/x\{(\d+)\}/g, (_, n) => xs(+n));
 function toks(s) { // working string -> display tokens
   const at = s.indexOf('@');
@@ -574,20 +593,21 @@ if (TR) {
   const rows = [{ ts: t0, col: t0.map((t, i) => /\d/.test(t.t) ? (i > 0 && /\d/.test(t0[i - 1].t) ? PAL[(ni - 1) % 3] : PAL[ni++ % 3]) : ''), from: [] }];
   for (const p of TR.passes) {
     const b = expand(p.before).split('@')[0], a = expand(p.after), aBody = a.split('@')[0];
-    if (a.includes('@')) tbl = true;
-    if (/^to-decimal/.test(p.name)) tbl = false;
+    tbl = a.includes('@');
     if (cur === b) cur = aBody;
     else if (cur.includes('(' + b + ')')) cur = cur.replace('(' + b + ')', aBody);
     else if (cur.includes(b)) cur = cur.replace(b, aBody);
     else cur = aBody;
     const prev = rows[rows.length - 1];
     const ts = toks(cur + (tbl ? '@' : ''));
-    const from = align(ts, prev.ts, /^mul/.test(p.name) ? 'mul' : /^to-decimal/.test(p.name) ? 'dec' : '');
-    rows.push({ ts, from, col: ts.map((t, i) => from[i] != null && t.t !== 'tbl' ? prev.col[from[i]] : ''), name: passJa(p), re: p.re, repl: p.repl, flags: p.flags });
+    const kind = cnt(aBody, '*') < cnt(b, '*') ? 'mul' : /^-?\d+$/.test(aBody) ? 'dec' : '';
+    const from = align(ts, prev.ts, kind);
+    rows.push({ ts, from, col: ts.map((t, i) => from[i] != null && t.t !== 'tbl' ? prev.col[from[i]] : ''), name: passJa(p, b, aBody), re: p.re, repl: p.repl, flags: p.flags, step: p.name === 'step' });
   }
   rows[rows.length - 1].col = rows[rows.length - 1].ts.map(() => 'a');
   const cut = (t, n) => t.length > n ? t.slice(0, n) + '…' : t;
-  const subst = r => { const rp = cut(r.repl || '', 22); return 's/' + cut(r.re, Math.max(14, 60 - rp.length)) + '/' + rp + '/' + (r.flags || ''); };
+  const subst = r => r.step ? 's/$STEP/$2$3$4$5$6$7$8$9$10$11$12$13/g'
+    : 's/' + cut(r.re === '\\z' || r.re === '(?^:\\z)' ? '$' : r.re, 40) + '/表/' + (r.flags || '');
   frame({ sec: 2, notes: `最後に、${TR.expr} を Perl で実際に計算してみます。`,
     html: `<div class="f c">${K('demo:h', '<span class="mono">(1+2)*4</span>を計算してみる', 'ovit big')}</div>`, mark: [OVM('demo:h')] });
   frame({ sec: 3, notes: '', html: conv(rowHtml(rows[0], 0, false)) });
@@ -598,6 +618,14 @@ if (TR) {
         rowHtml(rows[k], k, true)) });
   }
 }
+
+/* Perl がしているのはこれだけ: 表を付けて、1 本の正規表現を数字になるまで繰り返す */
+frame({ sec: 6, notes: 'Perl がやっているのはこれだけです。表をくっつけて、あとは同じ置換を、答えの数字になるまで繰り返す。$STEP は、今日出てきた置換を全部 | でつないだ 1 本の正規表現です。',
+  html: `<div class="f c">${code('re-loop', [
+    line([['lp1', 's/$/'], ['lp2', '表', { tc: 't-str' }], ['lp3', '/;']]),
+    line([['lp4', 'until (/^-?\\d+$/) {']]),
+    line([['lp5', '    '], ['lp6', 's/$STEP/$2$3$4$5$6$7$8$9$10$11$12$13/g', { hl: true, hlc: 'a' }], ['lp7', ';']]),
+    line([['lp8', '}']])], 'sm')}${K('lpcap', '<code>$STEP</code>＝ぜんぶの置換を<code>|</code>でつないだ1本', 'body nowrap')}</div>` });
 
 frame({ sec: 3, notes: '今度こそ、ちゃんと正規表現電卓です。',
   html: `<div class="f c"><div class="nowrap">${K('yay2a', '今度こそ', 'lead', 'span')}</div><div class="nowrap">${K('yay2b', '正規表現', 'display title a', 'span')}${K('yay2c', '電卓', 'display title', 'span')}</div></div>` });

@@ -80,22 +80,24 @@ function fontFaces() {
   return css && OFL_NOTICE + css;
 }
 html = fill(html, 'FONTS', `<style>\n${fontFaces()}</style>`);
-// Perl traces: the deck's demo and the pass-count summary come from the Perl
-// implementation (bin/regex-calc --trace), recorded at build time.
+// Perl traces: the deck's demo comes from the Perl implementation
+// (bin/regex-calc --trace --rewrite: one regex $STEP repeated), recorded at build time.
+// The CLI prints a pattern only when it differs from the previous pass, so a missing one repeats the last.
 function perlTrace(expr) {
   const { execFileSync } = require('child_process');
-  const out = execFileSync('perl', ['-I' + path.join(here, '../lib'), path.join(here, '../bin/regex-calc'), '--trace', expr], { encoding: 'utf8' });
+  const out = execFileSync('perl', ['-I' + path.join(here, '../lib'), path.join(here, '../bin/regex-calc'), '--trace', '--rewrite', expr], { encoding: 'utf8' });
   const passes = [];
   let p = null;
   for (const ln of out.split('\n')) {
     let m;
-    if ((m = /^#\d+ (.*)$/.exec(ln))) passes.push(p = { name: m[1] });
+    if ((m = /^#\d+ (.*)$/.exec(ln))) passes.push(p = { name: m[1], re: p && p.re, repl: p && p.repl, flags: p && p.flags });
     else if (p && (m = /^\s+pattern: (.*)$/.exec(ln))) p.re = m[1].replace(/^\(\?\^:(.*)\)$/, '$1');
     else if (p && (m = /^\s+replace: (.*)$/.exec(ln))) p.repl = m[1];
     else if (p && (m = /^\s+flags  : (.*)$/.exec(ln))) p.flags = m[1];
     else if (p && (m = /^\s+before : (.*)$/.exec(ln))) p.before = m[1];
     else if (p && (m = /^\s+after\s+: (.*)$/.exec(ln))) p.after = m[1];
   }
+  for (const q of passes) if (q.name === 'step') delete q.re;    // the deck shows s/$STEP/.../g; the pattern itself is ~200 KB
   const r = /result: (\S+)\s+\((\d+) s\/\/\/ passes\)/.exec(out);
   return { expr, result: r[1], count: +r[2], passes };
 }

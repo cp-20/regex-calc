@@ -35,7 +35,7 @@ slides/og.sh              # 最初のスライドからSNSシェア用画像 og.
 `src.html`内のマーカーを次の内容で展開し、`index.html`を書き出します。
 
 - `@@FONTS@@`: [`fonts/subset.py`](fonts/subset.py)で使用グリフだけをサブセット化したwoff2をデータURIとして埋め込み（LINE Seed JPのRegular / Bold / ExtraBold、Monaspace NeonのRegular / Medium）
-- `@@TRACES@@`: `bin/regex-calc --trace`の実行結果
+- `@@TRACES@@`: `bin/regex-calc --trace --rewrite`の実行結果（書き換え系モードのデモ）
 - `@@QR@@`: [`assets/qr.svg`](assets/qr.svg)
 - `@@ICON@@`: [`assets/icon.png`](assets/icon.png)のデータURI
 
