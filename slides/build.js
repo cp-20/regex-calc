@@ -97,9 +97,11 @@ function perlTrace(expr) {
     else if (p && (m = /^\s+before : (.*)$/.exec(ln))) p.before = m[1];
     else if (p && (m = /^\s+after\s+: (.*)$/.exec(ln))) p.after = m[1];
   }
-  for (const q of passes) if (q.name === 'step') delete q.re;    // the deck shows s/$STEP/.../g; the pattern itself is ~200 KB
+  // the deck shows s/$STEP/.../g per pass; $STEP itself (tens of KB) is kept once, for the closing glimpse
+  const step = (passes.find(q => q.name === 'step') || {}).re;
+  for (const q of passes) if (q.name === 'step') delete q.re;
   const r = /result: (\S+)\s+\((\d+) s\/\/\/ passes\)/.exec(out);
-  return { expr, result: r[1], count: +r[2], passes };
+  return { expr, result: r[1], count: +r[2], passes, step };
 }
 let traces = [];
 try {

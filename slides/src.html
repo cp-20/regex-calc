@@ -126,6 +126,12 @@ body{font-family:var(--sans);font-weight:400;font-feature-settings:"palt" 1;font
 
 /* overview / dividers */
 .ovl{display:flex;flex-direction:column;align-items:flex-start;gap:20px}
+.chain{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:-24px}
+.chain .cs{font-size:70px;line-height:1.3}
+.chain .cb{font-size:32px;font-weight:700;color:var(--faint);line-height:1.2}
+.stepwall{padding:0}
+.wall{position:absolute;inset:36px 40px;font-size:7.4px;line-height:1.16;word-break:break-all;color:var(--sub);overflow:hidden;text-align:left}
+.wallcap{position:relative;font-size:96px;font-weight:800;padding:20px 56px 26px;border-radius:28px;background:var(--bg);box-shadow:0 0 0 2px var(--code-bd),0 24px 80px rgba(0,0,0,.12)}
 .ovit{position:relative;font-size:76px;font-weight:700;letter-spacing:-.01em;line-height:1.3;white-space:nowrap;padding:0 .26em;margin-left:-.26em}
 .ovit .no{display:inline-block;width:1.3em;color:var(--a)}
 .ovit.big{font-size:150px}
@@ -312,9 +318,32 @@ const bans = () => {
   const it = (i, html) => `<span class="ban">${html}<span class="st" data-k="st${i}" data-in="draw" data-delay="${i * 90}"></span></span>`;
   return `<div class="bans mono">${it(0, line([['r', '/'], ['ee', 'e']], 'plain'))}${it(1, line([['bq', '(?{ })']], 'plain'))}${it(2, line([['bv', 'eval']], 'plain'))}</div>`;
 };
-frame({ sec: 7, notes: 'なので今日はズル禁止。/e も (?{ }) も eval も使いません。使っていいのは s/// の置換だけ。置換を何回か繰り返して計算します。',
-  html: `<div class="f">${K('ban', 'ズル禁止', 'display warn')}${bans()}
-    ${K('only', '使っていいのは<span class="mono">s///</span>の置換だけ', 'lead')}</div>` });
+frame({ sec: 6, notes: 'なので今日はズル禁止。/e も (?{ }) も eval も使いません。',
+  html: `<div class="f">${K('ban', 'ズル禁止', 'display warn')}${bans()}</div>` });
+/* is s/// alone Turing complete?  once: no (nowhere to keep a value); repeated: the string in between is the register */
+const TQ = (sub) => `<div class="f c">${K('tq1', 'そもそも、正規表現の置換って', 'lead')}${K('tq2', 'チューリング完全？', 'display title nowrap')}
+  ${K('tq3', sub, 'body faint')}</div>`;
+frame({ sec: 5, notes: 'そもそも、正規表現の置換ってチューリング完全なんでしょうか。チューリング完全は、ざっくり言うと何でも計算できる計算機のことです。',
+  html: TQ('チューリング完全≒なんでも計算できる計算機') });
+frame({ sec: 6, notes: '置換 1 回だけでは、チューリング完全になりません。途中の値を置いておくレジスタがないからです。',
+  html: `<div class="f c">${reBox('re-one', [['o1', 's/'], ['o2', '正規表現', { tc: 't-str' }], ['o3', '/'], ['o4', '置換', { tc: 't-str' }], ['o5', '/']])}
+    ${K('one1', '1回だけでは、<br>チューリング完全にならない', 'lead')}${K('one2', 'レジスタ（途中の値の置き場）がないから', 'body')}</div>` });
+/* the passes of (1+2)*4, from the build-time trace */
+const CHAIN = (() => {
+  const t = (window.TRACES || [])[0], ex = s => s.replace(/x\{(\d+)\}/g, (_, n) => xs(+n)).split('@')[0];
+  return t ? [t.expr, ...t.passes.filter(p => p.name === 'step').map(p => ex(p.after))]
+    : ['(1+2)*4', '(#x+#xx)*#xxxx', '(#xxx)*#xxxx', '#' + xs(12), '12'];
+})();
+const chain = (hl) => `<div class="chain">${CHAIN.map((s, i) => (i ? K('cb' + i, `↓ ${i}回目`, 'cb') : '') +
+  `<div class="cs">${dl([['c' + i + '_', s, hl && i > 0 && i < CHAIN.length - 1 ? HL('a', { w: true }) : {}]])}</div>`).join('')}</div>`;
+frame({ sec: 4, notes: 'じゃあ、何回も繰り返したら？',
+  html: `<div class="f c">${K('rep', '何回も繰り返したら？', 'lead')}${chain(false)}</div>` });
+frame({ sec: 6, notes: '置換と置換の間の文字列が、そのままレジスタの代わりになります。途中の値は、ここに置いておける。',
+  html: `<div class="f c">${K('rep2', '間の文字列が、<b class="a">レジスタ</b>代わり', 'lead')}${chain(true)}</div>` });
+frame({ sec: 5, notes: 'これで、だいたいチューリング完全です。',
+  html: `<div class="f c">${K('tc0', '（だいたい）', 'lead sub')}${K('tq2', 'チューリング完全！', 'display title a nowrap')}</div>` });
+frame({ sec: 3, notes: 'つまり、電卓も作れる！',
+  html: `<div class="f c">${K('calc', '電卓も作れる！', 'display title nowrap')}</div>` });
 
 /* =========================================================================
    作り方 → 各セクション（一覧で次の項目にマーカー → 区切りスライド）
@@ -627,6 +656,9 @@ frame({ sec: 6, notes: 'Perl がやっているのはこれだけです。表を
     line([['lp5', '    '], ['lp6', 's/$STEP/$2$3$4$5$6$7$8$9$10$11$12$13/g', { hl: true, hlc: 'a' }], ['lp7', ';']]),
     line([['lp8', '}']])], 'sm')}${K('lpcap', '<code>$STEP</code>＝ぜんぶの置換を<code>|</code>でつないだ1本', 'body nowrap')}</div>` });
 
+/* a glimpse of the whole $STEP: unreadable on purpose */
+if (TR && TR.step) frame({ sec: 4, notes: `ちなみに $STEP の中身はこうなっています。${TR.step.length.toLocaleString()} 文字あります。`,
+  html: `<div class="f c stepwall"><div class="wall mono">${E(TR.step)}</div>${K('wallcap', `<span class="mono">$STEP</span>＝${TR.step.length.toLocaleString()}文字`, 'wallcap')}</div>` });
 frame({ sec: 3, notes: '今度こそ、ちゃんと正規表現電卓です。',
   html: `<div class="f c"><div class="nowrap">${K('yay2a', '今度こそ', 'lead', 'span')}</div><div class="nowrap">${K('yay2b', '正規表現', 'display title a', 'span')}${K('yay2c', '電卓', 'display title', 'span')}</div></div>` });
 
@@ -787,7 +819,7 @@ function addCalls(el, fr, idx) {
     const T = Math.min(...rs.map(r => r.top)), B = Math.max(...rs.map(r => r.bottom));
     const d = document.createElement('div');
     d.className = `call ${c.tone || ''} ${c.below ? 'below' : ''}`;
-    d.dataset.k = `call:${idx}:${n}`; d.dataset.call = '';
+    d.dataset.k = `call:${idx}:${n}`; d.dataset.call = ''; d.dataset.on = c.on.join(' ');
     d.innerHTML = c.text;
     el.appendChild(d);
     const w = d.offsetWidth, h = d.offsetHeight;
@@ -952,11 +984,25 @@ function show(i, animate) {
         { transform: 'none', color: cs.color, backgroundColor: cs.backgroundColor },
       ], { duration: D, easing: EASE, delay, fill: 'backwards' });
     };
+    /* a callout waits only as long as what it points at: at once on glyphs that stay put,
+       with the fade of new glyphs, and until moving glyphs have mostly landed */
+    const callAt = new Map();
+    for (const c of el.querySelectorAll('[data-call]')) {
+      let t = 60;
+      for (const k of c.dataset.on.split(' ')) {
+        const a = q(el, k); if (!a) continue;
+        const s = snap.get(k), r = a.getBoundingClientRect(), lag = +(a.dataset.delay || 0);
+        if (s) { if (Math.abs(s.r.left - r.left) + Math.abs(s.r.top - r.top) > 2) t = Math.max(t, D * .45); }
+        else if (a.dataset.from && snap.get(a.dataset.from)) t = Math.max(t, D * .45 + lag);
+        else t = Math.max(t, 110 + lag);
+      }
+      callAt.set(c, t);
+    }
     const fadeIn = (node) => {
       const delay = +(node.dataset && node.dataset.delay || 0);
       const how = node.dataset && node.dataset.in;
       if (node.dataset && node.dataset.call !== undefined) {
-        node.animate([{ opacity: 0, transform: 'scale(.85)' }, { opacity: 1, transform: 'none' }], { duration: 240, delay: 260, easing: EASE, fill: 'backwards' });
+        node.animate([{ opacity: 0, transform: 'scale(.85)' }, { opacity: 1, transform: 'none' }], { duration: 220, delay: callAt.get(node) ?? 110, easing: EASE, fill: 'backwards' });
       } else if (how === 'draw') {
         node.animate([{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: 300, delay: 160 + delay, easing: 'cubic-bezier(.6,0,.2,1)', fill: 'backwards' });
       } else if (how === 'rise') {
