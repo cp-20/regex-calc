@@ -36,7 +36,6 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);overflow:hi
 body{font-family:var(--sans);font-weight:400;font-feature-settings:"palt" 1;font-kerning:normal;
   text-autospace:no-autospace;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 #stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:center;overflow:hidden;background:var(--bg)}
-#bar{position:absolute;left:0;bottom:0;height:4px;background:var(--a);opacity:.3;transition:width .3s ease;z-index:9}
 
 /* ---------- frames ---------- */
 .f{position:absolute;inset:0;padding:0 210px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:64px}
@@ -138,21 +137,21 @@ body{font-family:var(--sans);font-weight:400;font-feature-settings:"palt" 1;font
 
 /* ending */
 .end{position:absolute;inset:0}
-.end .ttl{position:absolute;left:0;right:0;top:170px;text-align:center;white-space:nowrap}
+.end .ttl{position:absolute;left:0;right:0;top:100px;text-align:center;white-space:nowrap}
 .strk{position:relative;display:inline-block}
 .pl{padding-bottom:170px}
 .pl .title{font-size:200px} .pl .fix{font-size:170px}
 .strk .st{position:absolute;left:-8px;right:-8px;top:52%;height:13px;background:var(--warn);border-radius:7px;transform-origin:0 50%}
 .strk .fix{position:absolute;left:-50%;right:-50%;top:100%;text-align:center;font-size:124px;font-weight:800;line-height:1.1;color:var(--warn);white-space:nowrap}
-.end .who{position:absolute;left:0;right:0;top:600px;display:flex;justify-content:center;align-items:center;gap:100px}
+.end .who{position:absolute;left:0;right:0;top:450px;display:flex;justify-content:center;align-items:center;gap:100px}
 .prof{display:flex;align-items:center;gap:44px;text-align:left}
 .prof img{width:188px;height:188px;border-radius:50%;border:2px solid var(--rule);background:#fff}
 .prof .nm{font-size:72px;font-weight:700;line-height:1.1;margin-bottom:26px}
 .vr{width:3px;height:220px;border-radius:2px;background:var(--rule)}
-.repo{display:flex;align-items:center;gap:44px}
-.qrc{width:300px;height:300px;padding:16px;background:#fff;border:2px solid var(--rule);border-radius:34px;color:var(--ink)}
+.repo{display:flex;flex-direction:column;align-items:center;gap:28px}
+.qrc{width:450px;height:450px;padding:22px;background:#fff;border:2px solid var(--rule);border-radius:34px;color:var(--ink)}
 .qrc svg{width:100%;height:100%;display:block}
-.repo .chipx{font-size:50px}
+.repo .chipx{font-size:44px}
 
 /* notes overlay + presenter */
 #notes{position:fixed;left:0;right:0;bottom:0;background:rgba(26,27,24,.92);color:#f5f4ef;font-size:22px;line-height:1.7;padding:18px 28px;display:none;z-index:20}
@@ -174,7 +173,7 @@ body.presenter #pres{display:grid;grid-template-columns:1fr 1fr;grid-template-ro
 </style>
 </head>
 <body>
-<div id="stage"><div id="bar"></div></div>
+<div id="stage"></div>
 <div id="notes"></div>
 <div id="pres">
   <div class="p-top"><span class="clock" id="pClock">0:00</span><span class="plan" id="pPlan"></span><span class="plan" id="pIdx"></span>
@@ -1032,7 +1031,6 @@ function show(i, animate) {
       .onfinish = () => { old.remove(); ghosts = ghosts.filter(x => x !== old); };
   } else if (old) old.remove();
 
-  document.getElementById('bar').style.width = (100 * i / (F.length - 1)) + '%';
   document.getElementById('notes').textContent = F[i].notes || '';
   if (location.hash !== '#' + (i + 1)) history.replaceState(null, '', '#' + (i + 1));
   post({ type: 'at', i });
