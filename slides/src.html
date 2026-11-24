@@ -129,7 +129,7 @@ body{font-family:var(--sans);font-weight:400;font-feature-settings:"palt" 1;font
 .chain .cs{font-size:70px;line-height:1.3}
 .chain .cb{font-size:32px;font-weight:700;color:var(--faint);line-height:1.2}
 .stepwall{padding:0}
-.wall{position:absolute;inset:36px 40px;font-size:7.4px;line-height:1.16;word-break:break-all;color:var(--sub);overflow:hidden;text-align:left}
+.wall{position:absolute;inset:36px 40px;line-height:1.16;word-break:break-all;color:var(--sub);overflow:hidden;text-align:left}
 .wallcap{position:relative;font-size:96px;font-weight:800;padding:20px 56px 26px;border-radius:28px;background:var(--bg);box-shadow:0 0 0 2px var(--code-bd),0 24px 80px rgba(0,0,0,.12)}
 .ovit{position:relative;font-size:76px;font-weight:700;letter-spacing:-.01em;line-height:1.3;white-space:nowrap;padding:0 .26em;margin-left:-.26em}
 .ovit .no{display:inline-block;width:1.3em;color:var(--a)}
@@ -657,7 +657,7 @@ frame({ sec: 6, notes: 'Perl がやっているのはこれだけです。表を
 
 /* a glimpse of the whole $STEP: unreadable on purpose */
 if (TR && TR.step) frame({ sec: 4, notes: `ちなみに $STEP の中身はこうなっています。${TR.step.length.toLocaleString()} 文字あります。`,
-  html: `<div class="f c stepwall"><div class="wall mono">${E(TR.step)}</div>${K('wallcap', `<span class="mono">$STEP</span>＝${TR.step.length.toLocaleString()}文字`, 'wallcap')}</div>` });
+  html: `<div class="f c stepwall"><div class="wall mono" style="font-size:${Math.sqrt(1840 * 1008 / (TR.step.length * 0.6 * 1.16) * 0.92).toFixed(2)}px">${E(TR.step)}</div>${K('wallcap', `<span class="mono">$STEP</span>＝${TR.step.length.toLocaleString()}文字`, 'wallcap')}</div>` });
 frame({ sec: 3, notes: '今度こそ、ちゃんと正規表現電卓です。',
   html: `<div class="f c"><div class="nowrap">${K('yay2a', '今度こそ', 'lead', 'span')}</div><div class="nowrap">${K('yay2b', '正規表現', 'display title a', 'span')}${K('yay2c', '電卓', 'display title', 'span')}</div></div>` });
 
