@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>正規表現で電卓を作る</title>
 <meta name="description" content="s///の置換だけで四則演算する電卓をPerlで作った話。YAPC::Tokyo 2026 LTの発表資料です。">
 <link rel="canonical" href="https://cp-20.github.io/regex-calc/">
@@ -35,6 +35,8 @@
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);overflow:hidden}
 body{font-family:var(--sans);font-weight:400;font-feature-settings:"palt" 1;font-kerning:normal;
   text-autospace:no-autospace;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+/* #vp clips the unscaled 1920px stage so phones keep a device-width layout viewport */
+#vp{position:fixed;inset:0;overflow:hidden}
 #stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:center;overflow:hidden;background:var(--bg)}
 
 /* ---------- frames ---------- */
@@ -156,8 +158,24 @@ body{font-family:var(--sans);font-weight:400;font-feature-settings:"palt" 1;font
 /* notes overlay + presenter */
 #notes{position:fixed;left:0;right:0;bottom:0;background:rgba(26,27,24,.92);color:#f5f4ef;font-size:22px;line-height:1.7;padding:18px 28px;display:none;z-index:20}
 body.shownotes #notes{display:block}
+
+/* phones: tap / swipe to navigate; in portrait the slide is centred above a nav bar */
+html,body{touch-action:pan-y pinch-zoom;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
+@media (pointer:coarse){#stage{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}}
+#nav{display:none}
+body.portrait #stage{top:calc((100% - 60px - env(safe-area-inset-bottom)) / 2)}
+body.portrait #nav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:6;height:calc(60px + env(safe-area-inset-bottom));
+  padding:0 max(8px,env(safe-area-inset-left)) env(safe-area-inset-bottom);align-items:center;gap:4px;background:var(--bg);border-top:1px solid var(--rule)}
+#nav button{font:inherit;font-weight:700;color:var(--ink);background:none;border:0;border-radius:12px;height:48px;min-width:56px;padding:0 12px;cursor:pointer}
+#nav button:active{background:var(--rule)}
+#nav button:disabled{color:var(--faint)}
+#nav svg{width:26px;height:26px;display:block;margin:auto;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+#nav .idx{flex:1;text-align:center;font-family:var(--mono);font-size:16px;color:var(--sub);font-variant-numeric:tabular-nums}
+#nav .fs{font-size:14px;color:var(--sub);display:flex;align-items:center;gap:6px}
+#nav .fs svg{width:20px;height:20px;margin:0}
+#nav .fs[hidden]{display:none}
 #pres{display:none}
-body.presenter #stage,body.presenter #notes{display:none!important}
+body.presenter #vp,body.presenter #notes,body.presenter #nav{display:none!important}
 body.presenter{overflow:auto}
 body.presenter #pres{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr;gap:20px 28px;padding:24px;height:100vh}
 .p-top{grid-column:1/3;display:flex;gap:40px;align-items:baseline}
@@ -173,8 +191,14 @@ body.presenter #pres{display:grid;grid-template-columns:1fr 1fr;grid-template-ro
 </style>
 </head>
 <body>
-<div id="stage"></div>
+<div id="vp"><div id="stage"></div></div>
 <div id="notes"></div>
+<nav id="nav" aria-label="スライド操作">
+  <button id="nPrev" aria-label="前へ"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <span class="idx" id="nIdx"></span>
+  <button class="fs" id="nFs" hidden><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>横画面</button>
+  <button id="nNext" aria-label="次へ"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+</nav>
 <div id="pres">
   <div class="p-top"><span class="clock" id="pClock">0:00</span><span class="plan" id="pPlan"></span><span class="plan" id="pIdx"></span>
     <button id="pReset">タイマーリセット</button></div>
@@ -680,7 +704,10 @@ const stage = document.getElementById('stage');
 let scale = 1, cur = -1, curEl = null, ghosts = [], autoT = 0;
 
 function fit() {
-  scale = Math.min(innerWidth / 1920, innerHeight / 1080);
+  // portrait: full width, with a nav bar below
+  const portrait = !/[?&]presenter\b/.test(location.search) && innerHeight > innerWidth * 1.15;
+  document.body.classList.toggle('portrait', portrait);
+  scale = portrait ? innerWidth / 1920 : Math.min(innerWidth / 1920, innerHeight / 1080);
   stage.style.transform = `translate(-50%,-50%) scale(${scale})`;
 }
 addEventListener('resize', () => { fit(); if (cur >= 0) show(cur, false); });
@@ -1032,6 +1059,9 @@ function show(i, animate) {
   } else if (old) old.remove();
 
   document.getElementById('notes').textContent = F[i].notes || '';
+  document.getElementById('nIdx').textContent = `${i + 1} / ${F.length}`;
+  document.getElementById('nPrev').disabled = i === 0;
+  document.getElementById('nNext').disabled = i === F.length - 1;
   if (location.hash !== '#' + (i + 1)) history.replaceState(null, '', '#' + (i + 1));
   post({ type: 'at', i });
   if (animate && F[i].auto && i + 1 < F.length) autoT = setTimeout(() => show(i + 1, true), F[i].auto);
@@ -1058,6 +1088,29 @@ addEventListener('keydown', e => {
   else if (k === 'n' && !PRESENTER) document.body.classList.toggle('shownotes');
   else if (k === 'p' && !PRESENTER) window.open(location.pathname + '?presenter', 'regexcalc-presenter', 'width=1400,height=860');
 });
+
+// touch: swipe left/right anywhere, or tap the slide (left third = back)
+(function touchNav() {
+  let p0 = null;
+  addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse' && e.isPrimary) p0 = { x: e.clientX, y: e.clientY, t: e.timeStamp, el: e.target }; });
+  addEventListener('pointercancel', () => { p0 = null; });
+  addEventListener('pointerup', e => {
+    if (!p0 || PRESENTER || e.pointerType === 'mouse') return;
+    const dx = e.clientX - p0.x, dy = e.clientY - p0.y, dt = e.timeStamp - p0.t, el = p0.el; p0 = null;
+    if (el.closest('#nav, a, button')) return;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) { dx < 0 ? next() : prev(); return; }
+    if (Math.hypot(dx, dy) > 12 || dt > 600 || !el.closest('#stage')) return;
+    const r = stage.getBoundingClientRect();
+    e.clientX < r.left + r.width / 3 ? prev() : next();
+  });
+  document.getElementById('nPrev').onclick = prev;
+  document.getElementById('nNext').onclick = next;
+  // landscape fullscreen where the browser allows it (Android; iOS Safari does not)
+  const fs = document.getElementById('nFs');
+  fs.hidden = !document.fullscreenEnabled;
+  fs.onclick = () => document.documentElement.requestFullscreen({ navigationUI: 'hide' })
+    .then(() => screen.orientation && screen.orientation.lock ? screen.orientation.lock('landscape') : null).catch(() => {});
+})();
 
 function start() {
   if (!PRESENTER) {
