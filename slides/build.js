@@ -4,7 +4,8 @@
 // Replaces the marker blocks in src.html:
 //   @@FONTS@@   subset LINE Seed JP / Monaspace Neon as woff2 data URIs
 //   @@TRACES@@  bin/regex-calc --trace output for the demo and counts
-//   @@QR@@      assets/qr.svg (GitHub URL)
+//   @@QR@@      assets/qr.svg (GitHub URL), assets/qr-x.svg (X profile)
+//   @@XSTAT@@   X follower counts (me, rival) at build time (refreshed live)
 //   @@ICON@@    assets/icon.png as a data URI
 const fs = require('fs');
 const path = require('path');
@@ -109,7 +110,28 @@ try {
 } catch (e) { console.warn('build: perl trace failed (' + e.message + ')'); }
 html = fill(html, 'TRACES', `<script>window.TRACES = ${safeJs(JSON.stringify(traces))};</script>`);
 const qr = fs.existsSync(path.join(here, 'assets/qr.svg')) ? fs.readFileSync(path.join(here, 'assets/qr.svg'), 'utf8').trim() : '';
-html = fill(html, 'QR', `<script>window.QR = ${JSON.stringify(qr)};</script>`);
+const qrx = fs.existsSync(path.join(here, 'assets/qr-x.svg')) ? fs.readFileSync(path.join(here, 'assets/qr-x.svg'), 'utf8').trim() : '';
+html = fill(html, 'QR', `<script>window.QR = ${JSON.stringify(qr)}; window.QRX = ${JSON.stringify(qrx)};</script>`);
+// X follower race (me vs. the rival in src.html): a snapshot for offline use.
+// The deck polls the same keyless, CORS-enabled endpoint (FxTwitter) live;
+// when it is unreachable at build time, keep the previous snapshot.
+function xstat() {
+  const { execFileSync } = require('child_process');
+  const user = (h) => JSON.parse(execFileSync('curl', ['-sfm', '10', `https://api.fxtwitter.com/${h}`], { encoding: 'utf8' })).user;
+  const prev = (() => {
+    const m = /window\.XSTAT = (\{.*\});<\/script>/.exec(fs.existsSync(path.join(here, 'index.html')) ? read('index.html') : '');
+    return m ? JSON.parse(m[1]) : null;
+  })();
+  try {
+    const rival = /const RIVAL = '([^']+)'/.exec(html)[1];
+    const me = user('__cp20__'), rv = user(rival);
+    return { me: me.followers, rival: rv.followers };
+  } catch (e) {
+    console.warn('build: follower fetch failed; ' + (prev ? `kept ${prev.me} / ${prev.rival}` : 'none embedded'));
+    return prev;
+  }
+}
+html = fill(html, 'XSTAT', `<script>window.XSTAT = ${JSON.stringify(xstat())};</script>`);
 html = fill(html, 'ICON', `<script>window.ICON = ${JSON.stringify(icon)};</script>`);
 fs.writeFileSync(path.join(here, 'index.html'), html);
 console.log(`build: wrote slides/index.html (${(html.length / 1024).toFixed(0)} KB)`);

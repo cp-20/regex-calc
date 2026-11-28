@@ -127,6 +127,8 @@ body{font-family:var(--sans);font-weight:400;font-feature-settings:"palt" 1;font
 
 /* overview / dividers */
 .ovl{display:flex;flex-direction:column;align-items:flex-start;gap:20px}
+/* the tall pass chain sits a little lower, clear of the X widget in the corner */
+.chainf{padding-top:96px}
 .chain{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:-24px}
 .chain .cs{font-size:70px;line-height:1.3}
 .chain .cb{font-size:32px;font-weight:700;color:var(--faint);line-height:1.2}
@@ -154,6 +156,71 @@ body{font-family:var(--sans);font-weight:400;font-feature-settings:"palt" 1;font
 .qrc{width:450px;height:450px;padding:22px;background:#fff;border:2px solid var(--rule);border-radius:34px;color:var(--ink)}
 .qrc svg{width:100%;height:100%;display:block}
 .repo .chipx{font-size:44px}
+/* X widget: info (count + race to the rival) beside the QR card, all sized in em so it is the
+   same object at the intro (40px), in the top-right corner (16px) and at the ending (34px).
+   The card's edge is the race track: it fills clockwise from the goal tick at the top centre
+   back to it; full = overtaken. */
+.xw{display:flex;font-family:var(--sans);line-height:1}
+.xi{display:flex;flex-direction:column}
+.xi .name{font-size:4.2em;margin:0}
+.xw .chipx{font-size:1.35em}
+.xs{display:flex}
+.xn{position:relative;display:flex;align-items:center;gap:.16em;font-size:3em;font-weight:800;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.xn svg{width:.6em;height:.6em;fill:var(--a)}
+.xn .dl{position:absolute;font-size:.46em;font-weight:800;color:var(--a);white-space:nowrap}
+.xn .dl.dn{color:var(--warn)}
+.xr{display:flex;align-items:baseline;gap:.35em;font-size:1.3em;font-weight:700;color:var(--sub);white-space:nowrap;font-variant-numeric:tabular-nums}
+.xr .pct{font-weight:800;color:var(--a)}
+/* goal reached: the % / remaining line becomes a green 達成 badge and the goal tick a check medal */
+.xr .ok{display:none;align-items:center;gap:.22em;padding:.16em .55em .18em .42em;border-radius:999px;background:var(--a);color:#fff;font-weight:800}
+.xr .ok svg{width:.95em;height:.95em;fill:none;stroke:currentColor;stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round}
+.xw.won .xr .pct,.xw.won .xr .rest{display:none}
+.xw.won .xr .ok{display:inline-flex}
+.xring .done{display:none}
+.xw.won .xring .done{display:inline}
+.xw.won .xring .goal,.xw.won .xring .kn{display:none}
+.xring .done circle{fill:var(--a);stroke:#fff;stroke-width:1.4}
+.xring .done path{fill:none;stroke:#fff;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.xring .pop{transform-box:fill-box;transform-origin:center}
+/* intro: profile card */
+.l-intro{align-items:center;gap:2.2em}
+.l-intro .xi{align-items:flex-start;gap:.7em}
+.l-intro .xi .chipx{margin-bottom:.25em}
+.l-intro .xs,.l-end .xs{align-items:baseline;gap:.55em}
+.l-intro .xn .dl,.l-end .xn .dl{left:100%;bottom:62%;margin-left:.1em;font-size:.4em}
+/* corner: compact, right-aligned against the card */
+.l-corner{align-items:center;gap:.85em}
+.l-corner .xi{align-items:flex-end;gap:.55em;text-align:right}
+.l-corner .xs{flex-direction:column;align-items:flex-end;gap:.5em}
+.l-corner .xn .dl{right:100%;top:.55em;margin-right:.35em}
+/* in the corner the handle is plain text, not a dark chip, so the widget stays quiet next to the content */
+.l-corner .chipx{background:transparent;color:var(--sub);padding:0;font-size:1.25em}
+.l-corner .chipx.xid svg{top:.04em}
+/* ending: centred under the card, like the GitHub one */
+.l-end{flex-direction:column;align-items:center;gap:.8em}
+.l-end .xn{font-size:1.9em}
+.l-end .xr{font-size:1.05em}
+.l-end .xs{margin-top:-.05em}
+.l-end .chipx{margin-top:.1em}
+.xw.nodata .xn,.xw.nodata .xr{visibility:hidden}
+.xcard{position:relative;width:10em;height:10em;flex:none}
+.xqc{position:absolute;inset:0;box-sizing:border-box;padding:.75em;background:#fff;border-radius:1.6em;color:var(--ink)}
+.qrw,.qrw svg{width:100%;height:100%;display:block}
+.xqc .eye{color:var(--a)}
+.xring{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible}
+.xring path{fill:none;stroke-width:2.4}
+.xring .tr{stroke:var(--rule)}
+.xring .pg{stroke:var(--a);stroke-linecap:round}
+.xring .kn{fill:var(--a);stroke:#fff;stroke-width:1.3}
+.xring .goal{stroke:var(--ink);stroke-width:1.5;stroke-linecap:round}
+.xav{position:absolute;left:3.85em;top:3.85em;width:2.3em;height:2.3em;box-sizing:border-box;border-radius:50%;border:2px solid var(--rule);background:#fff;display:block}
+.intro .xw{font-size:44px}
+.end .xw{font-size:34px}
+.end .xw .chipx{font-size:1.3em}
+.end .who.links{gap:150px;align-items:flex-start}
+.end .qrc{width:340px;height:340px}
+.corner{position:absolute;top:14px;right:30px;z-index:2;font-size:19.6px}
+.l-corner .xn{font-size:2.6em}
 
 /* notes overlay + presenter */
 #notes{position:fixed;left:0;right:0;bottom:0;background:rgba(26,27,24,.92);color:#f5f4ef;font-size:22px;line-height:1.7;padding:18px 28px;display:none;z-index:20}
@@ -207,6 +274,9 @@ body.presenter #pres{display:grid;grid-template-columns:1fr 1fr;grid-template-ro
   <div class="p-col"><div class="p-label">ノート</div><div class="p-notes" id="pNotes"></div></div>
 </div>
 
+<!-- @@XSTAT@@ -->
+<script>window.XSTAT = null;</script>
+<!-- @@/XSTAT@@ -->
 <!-- @@ICON@@ -->
 <script>window.ICON = "";</script>
 <!-- @@/ICON@@ -->
@@ -290,12 +360,47 @@ const frame = o => F.push(o);
    タイトル / 自己紹介 / 導入
    ========================================================================= */
 const XID = (k = 'xid') => K(k, `${SVG_X}@__cp20__`, 'chipx xid', 'span');
+/* X widget: live follower count and a race to the rival's count.
+   Progress = (me - base) / (rival + 1 - base), base = my count when the race started
+   (stored per browser; press b to restart it). */
+const RIVAL = 'r1kqmu';
+const XS = window.XSTAT || {};
+const SVG_PERSON = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7.5" r="4.6"/><path d="M2.8 21.5c0-4.8 4.1-7.8 9.2-7.8s9.2 3 9.2 7.8z"/></svg>';
+const SVG_CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const fmtN = n => Math.round(n).toLocaleString('en-US');
+/* rounded-rect track in a 100x100 box, starting at the top centre and running clockwise */
+const RS = 1.2, RR = 14.8, RL = 100 - 2 * RS - 2 * RR;
+const RING_D = `M50 ${RS}H${100 - RS - RR}A${RR} ${RR} 0 0 1 ${100 - RS} ${RS + RR}V${100 - RS - RR}A${RR} ${RR} 0 0 1 ${100 - RS - RR} ${100 - RS}H${RS + RR}A${RR} ${RR} 0 0 1 ${RS} ${100 - RS - RR}V${RS + RR}A${RR} ${RR} 0 0 1 ${RS + RR} ${RS}Z`;
+function ringPoint(p) {
+  const arc = Math.PI * RR / 2, segs = [['l', RL / 2, 50, RS, 1, 0], ['a', arc, 100 - RS - RR, RS + RR, -Math.PI / 2, 0],
+    ['l', RL, 100 - RS, RS + RR, 0, 1], ['a', arc, 100 - RS - RR, 100 - RS - RR, 0, 0], ['l', RL, 100 - RS - RR, 100 - RS, -1, 0], ['a', arc, RS + RR, 100 - RS - RR, Math.PI / 2, 0],
+    ['l', RL, RS, 100 - RS - RR, 0, -1], ['a', arc, RS + RR, RS + RR, Math.PI, 0], ['l', RL / 2, RS + RR, RS, 1, 0]];
+  let d = p * segs.reduce((a, g) => a + g[1], 0);
+  for (const [t, len, x, y, u, v] of segs) {
+    if (d > len) { d -= len; continue; }
+    if (t === 'l') return [x + u * d, y + v * d];
+    const a = u + d / RR; return [x + RR * Math.cos(a), y + RR * Math.sin(a)];
+  }
+  return [50, RS];
+}
+/* three layouts of the same parts (each part keeps its data-k, so they morph between them):
+     intro   card left, profile text right (name / handle / stats)
+     corner  stats right-aligned, hugging the card at the slide's top-right
+     end     card on top, handle and stats centred below, beside the GitHub card */
+const XW = (layout) => {
+  const stats = `<div class="xs">${K('xn', `${SVG_PERSON}<span class="n"></span>`, 'xn')}${K('xr', `<b class="pct"></b><span class="rest"></span><span class="ok">${SVG_CHECK}達成!!</span>`, 'xr')}</div>`;
+  const card = XCARD();
+  if (layout === 'intro') return `<div class="xw l-intro">${card}<div class="xi"><div class="name" data-k="name">しーぴー🍀</div>${XID()}${stats}</div></div>`;
+  if (layout === 'end') return `<div class="xw l-end">${card}${XID()}${stats}</div>`;
+  return `<div class="xw l-corner"><div class="xi">${XID()}${stats}</div>${card}</div>`;
+};
+const XCARD = () => `<div class="xcard">${K('xqr', `<div class="qrw">${window.QRX || ''}</div><svg class="xring" viewBox="0 0 100 100" aria-hidden="true"><path class="tr" d="${RING_D}"/><path class="pg" d="${RING_D}" pathLength="100"/><path class="goal" d="M50 -2.2V4.6"/><circle class="kn" r="2.9"/><g class="done" transform="translate(50 ${RS})"><g class="pop"><circle r="6"/><path d="M-2.7 .1l1.9 2 3.6-4"/></g></g></svg>`, 'xqc')}<img class="xav" data-k="icon" src="${ICON}" alt=""></div>`;
 frame({ sec: 6, notes: '「正規表現で電卓を作る」という話をします。',
   html: `<div class="f c"><div class="nowrap">${K('t1', '正規表現で電卓を', 'display title', 'span')}${K('t2', '作る', 'display title', 'span')}</div>
     <div class="byline"><img data-k="icon" src="${ICON}" alt=""><span class="nm" data-k="name">しーぴー🍀</span><span class="ev" data-k="ev">YAPC::Tokyo 2026</span></div></div>` });
-frame({ sec: 6, notes: 'しーぴーです。よろしくお願いします。',
-  html: `<div class="f intro"><img class="icon" data-k="icon" src="${ICON}" alt="">
-    <div><div class="name" data-k="name">しーぴー🍀</div>${XID()}</div></div>` });
+frame({ sec: 6, notes: 'しーぴーです。よろしくお願いします。友達のフォロワー数を超えたいので、よかったらフォローしてください。右上でずっと実況します。',
+  html: `<div class="f intro">${XW('intro')}</div>` });
+const INTRO = F.length - 1;
 frame({ sec: 3, notes: '……本題の前に、1つだけ言わせてください。',
   html: `<div class="f c">${K('bd1', '1つだけ言わせてください', 'msg')}</div>` });
 frame({ sec: 4, notes: '今日、誕生日です！', fx: 'confetti',
@@ -360,9 +465,9 @@ const CHAIN = (() => {
 const chain = (hl) => `<div class="chain">${CHAIN.map((s, i) => (i ? K('cb' + i, `↓ ${i}回目`, 'cb') : '') +
   `<div class="cs">${dl([['c' + i + '_', s, hl && i > 0 && i < CHAIN.length - 1 ? HL('a', { w: true }) : {}]])}</div>`).join('')}</div>`;
 frame({ sec: 4, notes: 'じゃあ、何回も繰り返したら？',
-  html: `<div class="f c">${K('rep', '何回も繰り返したら？', 'lead')}${chain(false)}</div>` });
+  html: `<div class="f c chainf">${K('rep', '何回も繰り返したら？', 'lead')}${chain(false)}</div>` });
 frame({ sec: 6, notes: '置換と置換の間の文字列が、そのままレジスタの代わりになります。途中の値は、ここに置いておける。',
-  html: `<div class="f c">${K('rep2', '間の文字列が、<b class="a">レジスタ</b>代わり', 'lead')}${chain(true)}</div>` });
+  html: `<div class="f c chainf">${K('rep2', '間の文字列が、<b class="a">レジスタ</b>代わり', 'lead')}${chain(true)}</div>` });
 frame({ sec: 5, notes: 'これで、だいたいチューリング完全です。',
   html: `<div class="f c">${K('tc0', '（だいたい）', 'lead sub')}${K('tq2', 'チューリング完全！', 'display title a nowrap')}</div>` });
 frame({ sec: 3, notes: 'つまり、電卓も作れる！',
@@ -524,14 +629,14 @@ const N2 = (o = {}) => { const h = (q, inner) => Object.assign(q, inner && o.all
     ['o6', '*', h(f(['o60']), 1)], ['o7h', '#', h(f(['o7h0']), 1)], ['o7', 'xx', h(f(['o70', 'o71']), 1)], ['o8', '+', h(f(['o80']), 1)], ['o9h', '#', h(f(['o9h0']), 1)], ['o9', 'x', h(f(['o90']), 1)], ['o10', ')', h(f(['o100']), 1)],
     ['o11', '*', f(['o110'])], ['o12h', '#', f(['o12h0'])], ['o12', 'xx', f(['o120', 'o121'])]]); };
 frame({ sec: 5, notes: 'かっこ。入れ子にもできます。かっこの中も、今までの規則がそのまま当たります。( や ) は * でも / でもないので、足し算の条件を満たす。',
-  html: conv(N1(true), K('tagp', 'かっこの中も同じ規則で', 'tag'), NM({ from: true })) });
+  html: conv(N1(true), K('tagp', 'かっこの中も同じ規則で', 'tag'), NM({ from: true }), { size: 's' }) });
 frame({ sec: 5, notes: '中が 1 つの数になったかっこは、外すだけ。',
-  html: conv(NM({ hl: true }), PR(true), N2({ from: true })),
+  html: conv(NM({ hl: true }), PR(true), N2({ from: true }), { size: 's' }),
   call: [{ on: range('pc', 0, 5), text: '中が1つの数', tone: 'a', below: true }] });
 frame({ sec: 4, notes: 'これも同じ置換を繰り返すだけ。外側のかっこの中も計算されて、かっこが外れる。あとは掛け算だけ。',
   html: conv(N2({ all: true }), K('tagq', '同じ置換を繰り返す', 'tag'),
     dl([['q1h', '#', Object.assign({ from: ['o1h0'] }, HL())], ['q1', xs(7), Object.assign({ cls: 'a', from: ['o10', 'o11', 'o12', 'o10', 'o11', 'o12', 'o90'], stagger: 30 }, HL())],
-      ['q11', '*', { from: ['o110'] }], ['q12h', '#', { from: ['o12h0'] }], ['q12', 'xx', { from: ['o120', 'o121'] }]])) });
+      ['q11', '*', { from: ['o110'] }], ['q12h', '#', { from: ['o12h0'] }], ['q12', 'xx', { from: ['o120', 'o121'] }]]), { size: 's' }) });
 
 /* --- 5. x の列を数字に戻す ------------------------------------------------------ */
 section(4, '最後に、xの列を数字に戻します。');
@@ -689,11 +794,12 @@ frame({ sec: 3, notes: '今度こそ、ちゃんと正規表現電卓です。',
 frame({ sec: 8, notes: '正規表現で電卓、作りました。コードは GitHub にあります。ありがとうございました。',
   html: `<div class="end">
     <div class="ttl">${K('t1', '正規表現で電卓を', 'display title', 'span')}<span class="strk">${K('t2', '作る', 'display title', 'span')}<span class="st" data-k="tst" data-in="draw" data-delay="260"></span><span class="fix" data-k="t3" data-delay="620">作った</span></span></div>
-    <div class="who">
-      <div class="prof"><img data-k="icon" src="${ICON}" alt=""><div><div class="nm" data-k="name">しーぴー🍀</div>${XID()}</div></div>
-      <div class="vr"></div>
+    <div class="who links">
+      ${XW('end')}
       <div class="repo">${K('qr', window.QR || '', 'qrc')}${K('gh', `${SVG_GH}cp-20/regex-calc`, 'chipx mono', 'span')}</div>
     </div></div>` });
+/* every frame between the intro and the ending keeps the X QR in the corner */
+for (let i = INTRO + 1; i < F.length - 1; i++) F[i].corner = true;
 
 /* =========================================================================
    Morph engine
@@ -716,7 +822,88 @@ fit();
 function build(i) {
   const t = document.createElement('template');
   t.innerHTML = F[i].html.trim();
-  return t.content.firstElementChild;
+  const el = t.content.firstElementChild;
+  if (F[i].corner) el.insertAdjacentHTML('beforeend', `<div class="corner">${XW('corner')}</div>`);
+  paintX(el, XV);
+  return el;
+}
+/* follower race: polled every 5 s while the deck is visible from a keyless, CORS-enabled
+   endpoint (FxTwitter); changes tween smoothly.  The build-time snapshot stays when offline. */
+const XT = { me: XS.me ?? null, rival: XS.rival ?? null, base: null };
+let baseStored = false;
+try { const b = parseInt(localStorage.getItem('regexcalc-base'), 10); if (b > 0) { XT.base = b; baseStored = true; } } catch (_) {}
+if (XT.base == null) XT.base = XT.me;
+let XV = Object.assign({}, XT), xRaf = 0, xBusy = false;
+const progress = v => v.me > v.rival ? 1 : Math.max(0, Math.min(1, (v.me - v.base) / Math.max(1e-9, v.rival + 1 - v.base)));
+function paintX(root, v, live) {
+  for (const w of root.querySelectorAll('.xw')) {
+    const ok = v.me != null && v.rival != null;
+    w.classList.toggle('nodata', !ok);
+    if (!ok) continue;
+    const p = progress(v), won = Math.round(v.me) > Math.round(v.rival);
+    if (w.classList.contains('won') !== won) {
+      w.classList.toggle('won', won);
+      if (won && live && !REDUCED) {   // the moment it flips: badge and medal pop in
+        const bounce = [{ transform: 'scale(.2)', opacity: 0 }, { transform: 'scale(1.25)', opacity: 1, offset: .55 }, { transform: 'scale(.94)', offset: .8 }, { transform: 'none' }];
+        w.querySelector('.xr .ok').animate(bounce, { duration: 700, easing: 'cubic-bezier(.2,.8,.3,1)' });
+        w.querySelector('.xring .pop').animate(bounce, { duration: 700, delay: 120, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'backwards' });
+      }
+    }
+    w.querySelector('.xn .n').textContent = fmtN(v.me);
+    w.querySelector('.xr .pct').textContent = Math.floor(p * 100) + '%';
+    w.querySelector('.xr .rest').textContent = won ? '' : `あと${fmtN(Math.max(1, Math.round(v.rival) + 1 - Math.round(v.me)))}人`;
+    w.querySelector('.xring .pg').setAttribute('stroke-dasharray', `${(p * 100).toFixed(3)} 100`);
+    const kn = w.querySelector('.xring .kn'), [kx, ky] = ringPoint(p);
+    kn.setAttribute('cx', kx.toFixed(2)); kn.setAttribute('cy', ky.toFixed(2));
+    kn.style.opacity = p > .004 && p < .996 ? 1 : 0;
+  }
+}
+function tweenX() {
+  cancelAnimationFrame(xRaf);
+  const from = Object.assign({}, XV), to = Object.assign({}, XT);
+  if (from.me == null || from.rival == null || REDUCED) { XV = to; if (curEl) paintX(curEl, XV); return; }
+  const t0 = performance.now(), dur = 1100;
+  const step = now => {
+    const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+    for (const f of ['me', 'rival', 'base']) XV[f] = from[f] + (to[f] - from[f]) * e;
+    if (curEl) paintX(curEl, XV, true);
+    if (k < 1) xRaf = requestAnimationFrame(step); else XV = to;
+  };
+  xRaf = requestAnimationFrame(step);
+}
+function popDelta(d) {
+  if (!curEl || REDUCED) return;
+  for (const n of curEl.querySelectorAll('.xw .xn')) {
+    const s = document.createElement('span');
+    s.className = 'dl' + (d < 0 ? ' dn' : ''); s.textContent = (d > 0 ? '+' : '−') + Math.abs(d);
+    n.appendChild(s);
+    s.animate([{ opacity: 0, transform: 'translateY(.5em)' }, { opacity: 1, transform: 'none', offset: .18 }, { opacity: 1, offset: .7 }, { opacity: 0, transform: 'translateY(-.6em)' }],
+      { duration: 1800, easing: 'ease-out' }).onfinish = () => s.remove();
+    n.animate([{ color: d > 0 ? 'var(--a)' : 'var(--warn)' }, { color: 'var(--ink)' }], { duration: 1400, easing: 'ease-in' });
+  }
+}
+function setX(me, rival) {
+  const was = Object.assign({}, XT);
+  if (Number.isFinite(me)) XT.me = me;
+  if (Number.isFinite(rival)) XT.rival = rival;
+  if (!baseStored && XT.me != null) { XT.base = XT.me; baseStored = true; try { localStorage.setItem('regexcalc-base', XT.me); } catch (_) {} }
+  if (XT.me === was.me && XT.rival === was.rival && XT.base === was.base) return;
+  if (was.me != null && XT.me !== was.me) popDelta(XT.me - was.me);
+  if (was.me != null && was.rival != null && was.me <= was.rival && XT.me > XT.rival && curEl && !REDUCED) confetti(curEl);
+  tweenX();
+}
+function resetBase() {
+  if (XT.me == null) return;
+  XT.base = XT.me; baseStored = true;
+  try { localStorage.setItem('regexcalc-base', XT.me); } catch (_) {}
+  tweenX();
+}
+function pollX() {
+  if (document.hidden || xBusy) return;   // only while the deck is on screen
+  xBusy = true;
+  const get = h => fetch(`https://api.fxtwitter.com/${h}`, { cache: 'no-store', signal: AbortSignal.timeout ? AbortSignal.timeout(4500) : undefined })
+    .then(r => r.ok ? r.json() : null).then(j => j && j.user ? +j.user.followers : NaN).catch(() => NaN);
+  Promise.all([get('__cp20__'), get(RIVAL)]).then(([me, rv]) => setX(me, rv)).finally(() => { xBusy = false; });
 }
 const rel = (r, sr) => ({ l: (r.left - sr.left) / scale, t: (r.top - sr.top) / scale, w: r.width / scale, h: r.height / scale });
 const q = (el, k) => el.querySelector(`[data-k="${k}"]`);
@@ -1086,6 +1273,7 @@ addEventListener('keydown', e => {
   else if (k === 'End') PRESENTER ? remote('go', F.length - 1) : show(F.length - 1, false);
   else if (k === 'f' && !PRESENTER) { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
   else if (k === 'n' && !PRESENTER) document.body.classList.toggle('shownotes');
+  else if (k === 'b' && !PRESENTER) resetBase();
   else if (k === 'p' && !PRESENTER) window.open(location.pathname + '?presenter', 'regexcalc-presenter', 'width=1400,height=860');
 });
 
@@ -1121,6 +1309,8 @@ function start() {
     };
     const h = parseInt(location.hash.slice(1), 10);
     show(isNaN(h) ? 0 : h - 1, false);
+    pollX(); setInterval(pollX, 5000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) pollX(); });
     addEventListener('hashchange', () => { const n = parseInt(location.hash.slice(1), 10) - 1; if (!isNaN(n) && n !== cur) show(n, false); });
     return;
   }
@@ -1132,7 +1322,8 @@ function start() {
   const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
   const fill = (id, i) => {
     const box = document.querySelector(`#${id} .inner`);
-    box.innerHTML = i < F.length ? F[i].html : '';
+    box.innerHTML = '';
+    if (i < F.length) box.appendChild(build(i));
     box.style.transform = `scale(${box.parentElement.clientWidth / 1920})`;
   };
   const render = () => {

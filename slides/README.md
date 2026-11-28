@@ -13,6 +13,7 @@ https://cp-20.github.io/regex-calc/ で公開しています（`main`の`slides/
 | `f` | 全画面 |
 | `n` | ノートを表示 |
 | `p` | 発表者ウィンドウ（ノート・タイマー・次のスライド） |
+| `b` | フォロワー競争の基準を今のフォロワー数にリセット |
 
 スマホでは左右スワイプか、スライドの右側タップで次へ・左側タップで前へ進みます。縦向きではスライドの下に操作バーを表示します。
 
@@ -22,6 +23,7 @@ https://cp-20.github.io/regex-calc/ で公開しています（`main`の`slides/
 slides/fonts/fetch.sh     # 初回のみ: LINE Seed JP / Monaspace Neon (OFL) を取得
 node slides/build.js      # src.html + Perlのトレース + フォントのサブセット → index.html
 slides/og.sh              # 最初のスライドからSNSシェア用画像 og.png を作る（Chromeを使用）
+node slides/check.js      # 右上のXウィジェットが全スライドで本文から8px以上離れているか検査（Chromeを使用）
 ```
 
 必要な環境:
@@ -30,7 +32,7 @@ slides/og.sh              # 最初のスライドからSNSシェア用画像 og.
 - `perl`（デモ用トレースの生成）
 - `python3`＋`fonttools`・`brotli`（フォントのサブセット化とwoff2埋め込み。`pip install fonttools brotli`）
 
-フォントソースまたは`fonttools`がない場合は、システムフォントにフォールバックしてビルドします。QRコードは[`assets/qr.py`](assets/qr.py)で再生成できます。
+フォントソースまたは`fonttools`がない場合は、システムフォントにフォールバックしてビルドします。QRコードは[`assets/qr.py`](assets/qr.py)（GitHub）と[`assets/qr-x.py`](assets/qr-x.py)（X）で再生成できます。
 
 ### `build.js`の動作
 
@@ -38,7 +40,8 @@ slides/og.sh              # 最初のスライドからSNSシェア用画像 og.
 
 - `@@FONTS@@`: [`fonts/subset.py`](fonts/subset.py)で使用グリフだけをサブセット化したwoff2をデータURIとして埋め込み（LINE Seed JPのRegular / Bold / ExtraBold、Monaspace NeonのRegular / Medium）
 - `@@TRACES@@`: `bin/regex-calc --trace --rewrite`の実行結果（書き換え系モードのデモ）
-- `@@QR@@`: [`assets/qr.svg`](assets/qr.svg)
+- `@@QR@@`: [`assets/qr.svg`](assets/qr.svg)と[`assets/qr-x.svg`](assets/qr-x.svg)
+- `@@XSTAT@@`: ビルド時の自分と比較相手（`src.html`の`RIVAL`）のXフォロワー数（[FxTwitter API](https://api.fxtwitter.com/)から取得。取得できなければ前回の値を残す）。スライドが表示されている間は5秒ごとに同じAPIで更新します。到達率は「(今−基準)÷(相手+1−基準)」で、基準はそのブラウザで最初に取得した自分のフォロワー数です（`b`でリセット）
 - `@@ICON@@`: [`assets/icon.png`](assets/icon.png)のデータURI
 
 また、ビルド時に画面表示テキストのスペース検査（lint）が走ります。日本語と英数字・記号の間にスペース（`x 1 文字`など）があるとビルドが失敗します（スピーカーノートとコメントは対象外）。
